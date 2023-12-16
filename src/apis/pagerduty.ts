@@ -1,6 +1,8 @@
-import { PagerDutyCreateIntegrationResponse, PagerDutyCreateServiceResponse } from "../types";
+import { PagerDutyCreateIntegrationResponse, PagerDutyCreateServiceResponse, PagerDutyEscalationPolicyListResponse, PagerDutyEscalationPolicy, HttpError } from "../types";
 
-export async function createService(name: string, description: string, escalationPolicyId: string): Promise<[string, string]> {
+// Supporting custom actions
+
+export async function createService(name: string, description: string, escalationPolicyId: string): Promise<[string, string]> {    
     let response: Response;
     const baseUrl = 'https://api.pagerduty.com/services';
     const options: RequestInit = {
@@ -14,7 +16,7 @@ export async function createService(name: string, description: string, escalatio
             },
         }),
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`, 
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -101,5 +103,49 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
 
     } catch (error) {
         throw new Error(`Failed to parse service information: ${error}`);
+    }
+}
+
+// Supporting router
+
+export async function getAllEscalationPolicies(): Promise<PagerDutyEscalationPolicy[]> {
+    let response: Response;
+    const baseUrl = 'https://api.pagerduty.com/escalation_policies';
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+
+    try {
+        response = await fetch(`${baseUrl}?total=true&sort_by=name&limit=100`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve escalation policies: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to list escalation policies. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to list escalation policies. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 403:
+            throw new HttpError("Failed to list escalation policies. Caller is not authorized to view the requested resource.", 403);
+        case 429:
+            throw new HttpError("Failed to list escalation policies. Rate limit exceeded.", 429);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyEscalationPolicyListResponse;
+    try {
+        result = await response.json();
+
+        return result.escalation_policies;
+
+    } catch (error) {
+        throw new Error(`Failed to parse escalation policy information: ${error}`);
     }
 }
