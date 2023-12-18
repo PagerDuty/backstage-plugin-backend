@@ -28,7 +28,7 @@ describe('createRouter', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-  });
+  });  
 
   describe('GET /health', () => {
     it('returns ok', async () => {
@@ -53,7 +53,7 @@ describe('createRouter', () => {
                 summary: "Test Escalation Policy",
                 self: "https://api.pagerduty.com/escalation_policies/12345",
                 html_url: "https://example.pagerduty.com/escalation_policies/12345",
-              } 
+              }
             ]
           })
         })
@@ -91,7 +91,27 @@ describe('createRouter', () => {
       expect(response.status).toEqual(expectedStatusCode);
       expect(response.text).toMatch(expectedErrorMessage);
     });
-
     
+    it('returns empty list when no escalation policies exist', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          status: 200,
+          json: () => Promise.resolve({
+            escalation_policies: []
+          })
+        })
+      ) as jest.Mock;
+
+      const expectedStatusCode = 200;
+      const expectedResponse: PagerDutyEscalationPolicy[] = [];
+
+      const response = await request(app).get('/escalation_policies');
+
+      const policies: PagerDutyEscalationPolicy[] = JSON.parse(response.text);
+
+      expect(response.status).toEqual(expectedStatusCode);
+      expect(response.body).toEqual(expectedResponse);
+      expect(policies.length).toEqual(0);
+    });
   });
 });

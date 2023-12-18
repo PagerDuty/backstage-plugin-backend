@@ -108,9 +108,8 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
 
 // Supporting router
 
-export async function getAllEscalationPolicies(): Promise<PagerDutyEscalationPolicy[]> {
+async function getEscalationPolicies(offset: number, limit: number): Promise<[Boolean, PagerDutyEscalationPolicy[]]> {
     let response: Response;
-    const baseUrl = 'https://api.pagerduty.com/escalation_policies';
     const options: RequestInit = {
         method: 'GET',
         headers: {
@@ -119,9 +118,10 @@ export async function getAllEscalationPolicies(): Promise<PagerDutyEscalationPol
             'Content-Type': 'application/json',
         },
     };
+    const baseUrl = 'https://api.pagerduty.com/escalation_policies';
 
     try {
-        response = await fetch(`${baseUrl}?total=true&sort_by=name&limit=100`, options);
+        response = await fetch(`${baseUrl}?total=true&sort_by=name&offset=${offset}&limit=${limit}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve escalation policies: ${error}`);
     }
@@ -143,9 +143,28 @@ export async function getAllEscalationPolicies(): Promise<PagerDutyEscalationPol
     try {
         result = await response.json();
 
-        return result.escalation_policies;
-
+        return [result.more, result.escalation_policies];
+        
     } catch (error) {
-        throw new Error(`Failed to parse escalation policy information: ${error}`);
+        throw new HttpError(`Failed to parse escalation policy information: ${error}`, 500);
+    }
+}
+
+export async function getAllEscalationPolicies(offset: number = 0): Promise<PagerDutyEscalationPolicy[]> {
+    const limit = 50;
+
+    try {
+        const res = await getEscalationPolicies(offset, limit);        
+        const results = res[1];
+
+        // if more results exist
+        if (res[0]) {
+            return results.concat((await getAllEscalationPolicies(offset + limit)));
+        }
+        
+        return results;
+    } catch (error) {
+        
+        throw new HttpError(`${((error as HttpError).message) }`, ((error as HttpError).status));
     }
 }

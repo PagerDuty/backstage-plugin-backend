@@ -16,17 +16,22 @@ export async function createRouter(
 ): Promise<express.Router> {
     const { logger, config } = options;
 
-    if (config.getOptionalString('pagerDuty.apiToken') === undefined) {
-        throw new Error('No PagerDuty API token was provided.');
+    // Set the PagerDuty API token as an environment variable if it exists in the config file
+    try {
+        process.env.PAGERDUTY_TOKEN = config.getString('pagerDuty.apiToken');
     }
-    process.env.PAGERDUTY_TOKEN = `${config.getOptionalString('pagerDuty.apiToken')}`;
-
+    catch (error) {
+        logger.error(`Failed to retrieve PagerDuty API token from config file: ${error}`);
+        throw error;
+    }
+    
+    // Create the router
     const router = Router();
     router.use(express.json());
 
-    router.get('/escalation_policies', async (_, response) => {
-        logger.info('Getting escalation policies');
-
+    // Add routes
+    // GET /escalation_policies
+    router.get('/escalation_policies', async (_, response) => {                    
         try {
             const escalationPolicyList = await getAllEscalationPolicies();
             const escalationPolicyDropDownOptions = escalationPolicyList.map((policy) => {
@@ -44,10 +49,14 @@ export async function createRouter(
         }
     });
 
+    // GET /health
     router.get('/health', async (_, response) => {
         response.status(200).json({ status: 'ok' });
     });
 
+    // Add error handler
     router.use(errorHandler());
+
+    // Return the router
     return router;
 }
