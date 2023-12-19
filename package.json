@@ -46,7 +46,9 @@
     "typescript": "^4.8.4"
   },
   "files": [
-    "dist"
+    "dist",
+    "config.d.ts"
   ],
+  "configSchema": "config.d.ts",
   "packageManager": "yarn@3.6.3"
 }
