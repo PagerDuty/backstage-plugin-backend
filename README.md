@@ -29,8 +29,7 @@ yarn add --cwd packages/backend @pagerduty/backstage-plugin-backend
 
 ### Configuration
 
-To use the custom actions as part of your custom project templates follow the instructions on the `Create PagerDuty service with Software Templates` section of the project's documentation [here](https://pagerduty.github.io/backstage-plugin-docs/).
-
+To use the custom actions as part of your custom project templates follow the instructions on the `Create PagerDuty service with Software Templates` section of the project's documentation [here](https://pagerduty.github.io/backstage-plugin-docs/advanced/create-service-software-template/).
 
 ## Support
 

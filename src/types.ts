@@ -28,6 +28,7 @@ export type PagerDutyTeam = {
 
 export type PagerDutyEscalationPolicy = {
     id: string;
+    name: string;
     type: string;
     summary: string;
     self: string;
@@ -71,3 +72,27 @@ export type PagerDutyVendor = {
     self: string;
     htmlUrl: string;
 };
+
+export type PagerDutyEscalationPolicyListResponse = {
+    escalation_policies: PagerDutyEscalationPolicy[];
+    limit: number;
+    offset: number;
+    more: boolean;
+    total: number;
+};
+
+export type PagerDutyEscalationPolicyDropDownOption = {
+    label: string;
+    value: string;
+};
+
+export class HttpError extends Error {
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+    }
+
+    status: number;
+}
+
+
