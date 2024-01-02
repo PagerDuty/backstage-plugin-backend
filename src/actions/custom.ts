@@ -8,6 +8,7 @@ export const createPagerDutyServiceAction = () => {
         name: string;
         description: string;
         escalationPolicyId: string;
+        alertGrouping?: string;
     }>({
         id: 'pagerduty:service:create',
         schema: {
@@ -15,6 +16,7 @@ export const createPagerDutyServiceAction = () => {
                 name: z.string().min(1, "name is required").describe('Name of the service'),
                 description: z.string().min(1, "description is required").describe('Description of the service'),
                 escalationPolicyId: z.string().min(1, "Escalation policy is required").describe('Escalation policy ID'),
+                alertGrouping: z.string().optional().describe('Alert grouping parameters'),
             }),
             output: z.object({
                 serviceUrl: z.string().describe('PagerDuty Service URL'),
@@ -26,7 +28,7 @@ export const createPagerDutyServiceAction = () => {
         async handler(ctx) {
             try {
                 // Create service in PagerDuty
-                const [serviceId, serviceUrl] = await api.createService(ctx.input.name, ctx.input.description, ctx.input.escalationPolicyId);
+                const [serviceId, serviceUrl] = await api.createService(ctx.input.name, ctx.input.description, ctx.input.escalationPolicyId, ctx.input.alertGrouping);
                 ctx.logger.info(`Service '${ctx.input.name}' created successfully!`);
 
                 ctx.output('serviceUrl', serviceUrl);

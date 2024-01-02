@@ -2,7 +2,7 @@ import { PagerDutyCreateIntegrationResponse, PagerDutyCreateServiceResponse, Pag
 
 // Supporting custom actions
 
-export async function createService(name: string, description: string, escalationPolicyId: string): Promise<[string, string]> {    
+export async function createService(name: string, description: string, escalationPolicyId: string, alertGrouping? : string): Promise<[string, string]> {    
     let response: Response;
     const baseUrl = 'https://api.pagerduty.com/services';
     const options: RequestInit = {
@@ -14,6 +14,8 @@ export async function createService(name: string, description: string, escalatio
                 id: escalationPolicyId,
                 type: 'escalation_policy_reference',
             },
+            alert_creation: 'create_alerts_and_incidents',
+            alert_grouping_parameters: alertGrouping,
         }),
         headers: {
             Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`, 
