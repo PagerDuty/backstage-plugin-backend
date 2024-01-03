@@ -1,6 +1,7 @@
 import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { z } from 'zod';
 import * as api from '../apis/pagerduty';
+import { CreateServiceResponse } from '../types';
 
 export const createPagerDutyServiceAction = () => {
 
@@ -28,15 +29,20 @@ export const createPagerDutyServiceAction = () => {
         async handler(ctx) {
             try {
                 // Create service in PagerDuty
-                const [serviceId, serviceUrl] = await api.createService(ctx.input.name, ctx.input.description, ctx.input.escalationPolicyId, ctx.input.alertGrouping);
+                const service: CreateServiceResponse = await api.createService(
+                        ctx.input.name, 
+                        ctx.input.description, 
+                        ctx.input.escalationPolicyId, 
+                        ctx.input.alertGrouping);
                 ctx.logger.info(`Service '${ctx.input.name}' created successfully!`);
+                ctx.logger.info(`Alert grouping set to '${service.alertGrouping}'`);
 
-                ctx.output('serviceUrl', serviceUrl);
-                ctx.output('serviceId', serviceId);
+                ctx.output('serviceUrl', service.url);
+                ctx.output('serviceId', service.id);
 
                 // Create Backstage Integration in PagerDuty service
                 const backstageIntegrationId = 'PRO19CT'; // ID for Backstage integration
-                const integrationKey = await api.createServiceIntegration(serviceId, backstageIntegrationId);
+                const integrationKey = await api.createServiceIntegration(service.id, backstageIntegrationId);
                 ctx.logger.info(`Backstage Integration for service '${ctx.input.name}' created successfully!`);
 
                 ctx.output('integrationKey', integrationKey);
