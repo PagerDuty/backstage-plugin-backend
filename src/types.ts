@@ -95,4 +95,13 @@ export class HttpError extends Error {
     status: number;
 }
 
+export type PagerDutyAbilitiesListResponse = {
+    abilities: string[];
+};
 
+
+export type CreateServiceResponse = {
+    id: string;
+    url: string;
+    alertGrouping: string;
+};
