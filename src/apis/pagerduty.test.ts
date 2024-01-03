@@ -8,20 +8,98 @@ describe("PagerDuty API", () => {
     });
 
     describe("createService", () => {
-        it("should create a service", async () => {
+        it("should create a service without event grouping when AIOps is not available", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
 
-            const expectedResponse = ["S3RV1CE1D", "https://testaccount.pagerduty.com/services/S3RV1CE1D"];
+            const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
 
-            global.fetch = jest.fn(() =>
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
                 Promise.resolve({
                     status: 201,
                     json: () => Promise.resolve({
                         service: {
-                            id: expectedResponse[0],
-                            htmlUrl: expectedResponse[1],
+                            id: "S3RV1CE1D",
+                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                        }
+                    })
+                })
+            ) as jest.Mock;
+
+            const result = await createService(name, description, escalationPolicyId, "intelligent");
+
+            expect(result).toEqual(expectedResponse);
+            expect(fetch).toHaveBeenCalledTimes(2);
+        });
+
+        it("should create a service without event grouping when grouping is 'null'", async () => {
+            const name = "TestService";
+            const description = "Test Service Description";
+            const escalationPolicyId = "12345";
+
+            const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
+
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
+                Promise.resolve({
+                    status: 201,
+                    json: () => Promise.resolve({
+                        service: {
+                            id: "S3RV1CE1D",
+                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                        }
+                    })
+                })
+            ) as jest.Mock;
+
+            const result = await createService(name, description, escalationPolicyId, "null");
+
+            expect(result).toEqual(expectedResponse);
+            expect(fetch).toHaveBeenCalledTimes(2);
+        });
+
+        it("should create a service without event grouping when grouping is undefined", async () => {
+            const name = "TestService";
+            const description = "Test Service Description";
+            const escalationPolicyId = "12345";
+
+            const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
+
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
+                Promise.resolve({
+                    status: 201,
+                    json: () => Promise.resolve({
+                        service: {
+                            id: "S3RV1CE1D",
+                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
                         }
                     })
                 })
@@ -30,7 +108,42 @@ describe("PagerDuty API", () => {
             const result = await createService(name, description, escalationPolicyId);
 
             expect(result).toEqual(expectedResponse);
-            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(fetch).toHaveBeenCalledTimes(2);
+        });
+
+        it("should create a service", async () => {
+            const name = "TestService";
+            const description = "Test Service Description";
+            const escalationPolicyId = "12345";
+
+            const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
+
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
+                Promise.resolve({
+                    status: 201,
+                    json: () => Promise.resolve({
+                        service: {
+                            id: "S3RV1CE1D",
+                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                        }
+                    })
+                })
+            ) as jest.Mock;
+
+            const result = await createService(name, description, escalationPolicyId);
+
+            expect(result).toEqual(expectedResponse);
+            expect(fetch).toHaveBeenCalledTimes(2);
         });
 
         it("should NOT create a service when caller provides invalid arguments", async () => {
@@ -38,7 +151,17 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "";
 
-            global.fetch = jest.fn(() =>
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
                 Promise.resolve({
                     status: 400,
                     json: () => Promise.resolve({})
@@ -57,7 +180,17 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "";
 
-            global.fetch = jest.fn(() =>
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
                 Promise.resolve({
                     status: 401,
                     json: () => Promise.resolve({})
@@ -76,7 +209,17 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
 
-            global.fetch = jest.fn(() =>
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
                 Promise.resolve({
                     status: 402,
                     json: () => Promise.resolve({})
@@ -95,7 +238,17 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
 
-            global.fetch = jest.fn(() =>
+            global.fetch = jest.fn().mockReturnValueOnce(
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve({
+                        abilities: [
+                            "preview_intelligent_alert_grouping",
+                            "time_based_alert_grouping"
+                        ]
+                    })
+                })
+            ).mockReturnValueOnce(
                 Promise.resolve({
                     status: 403,
                     json: () => Promise.resolve({})
