@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-conditional-expect */
-import { HttpError } from "@pagerduty/backstage-plugin-common";
-import { createService, createServiceIntegration, getAllEscalationPolicies, getOncallUsers } from "./pagerduty";
+import { HttpError, PagerDutyChangeEvent, PagerDutyService } from "@pagerduty/backstage-plugin-common";
+import { createService, createServiceIntegration, getAllEscalationPolicies, getChangeEvents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from "./pagerduty";
 
 describe("PagerDuty API", () => {
     afterEach(() => {
@@ -885,6 +885,331 @@ describe("PagerDuty API", () => {
             expect(result).toEqual(expectedResponse);
             expect(result.length).toEqual(2);
             expect(fetch).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("getServices", () => {
+        describe("getServicesByIntegrationKey", () => {
+            it("should return service when 'integration_key' is provided", async () => {
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedResponse: PagerDutyService = {
+                    id: "S3RV1CE1D",
+                    name: "Test Service",
+                    description: "Test Service Description",
+                    html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                    escalation_policy: {
+                        id: "P0L1CY1D",
+                        name: "Test Escalation Policy",
+                        html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                        type: "escalation_policy_reference",
+                    },
+                    status: "active",
+                };
+
+                const mockAPIResponse = {
+                    "services": [
+                        {
+                            "id": expectedResponse.id,
+                            "name": expectedResponse.name,
+                            "description": expectedResponse.description,
+                            "status": expectedResponse.status,
+                            "escalation_policy": {
+                                "id": expectedResponse.escalation_policy.id,
+                                "name": expectedResponse.escalation_policy.name,
+                                "type": expectedResponse.escalation_policy.type,
+                                "html_url": expectedResponse.escalation_policy.html_url
+                            },
+                            "html_url": expectedResponse.html_url
+                        }
+                    ],
+                    "limit": 25,
+                    "offset": 0,
+                    "total": null,
+                    "more": false
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getServiceByIntegrationKey(integrationKey);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get service when caller provides invalid arguments", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get service. Caller provided invalid arguments.";
+
+                try {
+                    await getServiceByIntegrationKey(integrationKey);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getServiceByIntegrationKey(integrationKey);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+        
+        describe("getServicesById", () => {
+            it("should return service when 'service_id' is provided", async () => {
+                const serviceId = "SERV1C31D";
+                const expectedResponse: PagerDutyService = {
+                    id: "S3RV1CE1D",
+                    name: "Test Service",
+                    description: "Test Service Description",
+                    html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                    escalation_policy: {
+                        id: "P0L1CY1D",
+                        name: "Test Escalation Policy",
+                        html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                        type: "escalation_policy_reference",
+                    },
+                    status: "active",
+                };
+
+                const mockAPIResponse = {
+                    "service":
+                    {
+                        "id": expectedResponse.id,
+                        "name": expectedResponse.name,
+                        "description": expectedResponse.description,
+                        "status": expectedResponse.status,
+                        "escalation_policy": {
+                            "id": expectedResponse.escalation_policy.id,
+                            "name": expectedResponse.escalation_policy.name,
+                            "type": expectedResponse.escalation_policy.type,
+                            "html_url": expectedResponse.escalation_policy.html_url
+                        },
+                        "html_url": expectedResponse.html_url
+                    }
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getServiceById(serviceId);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get service when caller provides invalid arguments", async () => {
+                const serviceId = "SERV1C31D";
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get service. Caller provided invalid arguments.";
+
+                try {
+                    await getServiceById(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getServiceById(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+
+        describe("getChangeEvents", () => {
+            it("should return change events list", async () => {
+                const serviceId = "SERV1C31D";
+                const expectedResponse: PagerDutyChangeEvent[] = [
+                    {
+                        id: "CH4NG3_3V3NT_1D",
+                        source: "GitHub",
+                        summary: "Test Change Event 1",
+                        timestamp: "2020-01-01T00:00:00Z",
+                        links: [
+                            {
+                                href: "https://example.pagerduty.com/change_events/CH4NG3_3V3NT_1D",
+                                text: "View in PagerDuty",
+                            },
+                        ],
+                        integration: [
+                            {
+                                id: "INT3GR4T10N_1D",
+                                summary: "Test Integration 1",
+                                type: "github",
+                                html_url: "https://example.pagerduty.com/integrations/INT3GR4T10N_1D",
+                            }
+                        ]                       
+                    },
+                    {
+                        id: "CH4NG3_3V3NT_2D",
+                        source: "GitHub",
+                        summary: "Test Change Event 2",
+                        timestamp: "2020-01-01T10:00:00Z",
+                        links: [
+                            {
+                                href: "https://example.pagerduty.com/change_events/CH4NG3_3V3NT_2D",
+                                text: "View in PagerDuty",
+                            },
+                        ],
+                        integration: [
+                            {
+                                id: "INT3GR4T10N_2D",
+                                summary: "Test Integration 2",
+                                type: "github",
+                                html_url: "https://example.pagerduty.com/integrations/INT3GR4T10N_2D",
+                            }
+                        ]
+                    }
+                ];
+
+                const mockAPIResponse = {
+                    "change_events": [
+                        {
+                            "id": expectedResponse[0].id,
+                            "source": expectedResponse[0].source,
+                            "summary": expectedResponse[0].summary,
+                            "timestamp": expectedResponse[0].timestamp,
+                            "links": [
+                                {
+                                    "href": expectedResponse[0].links[0].href,
+                                    "text": expectedResponse[0].links[0].text,
+                                }
+                            ],
+                            "integration": [
+                                {
+                                    "id": expectedResponse[0].integration[0].id,
+                                    "summary": expectedResponse[0].integration[0].summary,
+                                    "type": expectedResponse[0].integration[0].type,
+                                    "html_url": expectedResponse[0].integration[0].html_url,
+                                }
+                            ]
+                        },
+                        {
+                            "id": expectedResponse[1].id,
+                            "source": expectedResponse[1].source,
+                            "summary": expectedResponse[1].summary,
+                            "timestamp": expectedResponse[1].timestamp,
+                            "links": [
+                                {
+                                    "href": expectedResponse[1].links[0].href,
+                                    "text": expectedResponse[1].links[0].text,
+                                }
+                            ],
+                            "integration": [
+                                {
+                                    "id": expectedResponse[1].integration[0].id,
+                                    "summary": expectedResponse[1].integration[0].summary,
+                                    "type": expectedResponse[1].integration[0].type,
+                                    "html_url": expectedResponse[1].integration[0].html_url,
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getChangeEvents(serviceId);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get change events when caller provides invalid arguments", async () => {
+                const serviceId = "SERV1C31D";
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get change events for service. Caller provided invalid arguments.";
+
+                try {
+                    await getChangeEvents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get change events for service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getChangeEvents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
         });
     });
 });

@@ -3,8 +3,8 @@ import { Config } from '@backstage/config';
 import express from 'express';
 import Router from 'express-promise-router';
 import { Logger } from 'winston';
-import { getAllEscalationPolicies, getOncallUsers } from '../apis/pagerduty';
-import { HttpError } from '@pagerduty/backstage-plugin-common';
+import { getAllEscalationPolicies, getChangeEvents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from '../apis/pagerduty';
+import { HttpError, PagerDutyChangeEventsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse } from '@pagerduty/backstage-plugin-common';
 
 export interface RouterOptions {
     logger: Logger;
@@ -57,12 +57,84 @@ export async function createRouter(
             const escalationPolicyId : string = request.query.escalation_policy_ids as string || '';
 
             if (escalationPolicyId === '') {
-                response.status(400).json('Bad Request: Escalation Policy ID is required');
+                response.status(400).json("Bad Request: 'escalation_policy_ids[]' is required");
             }
 
             const oncallUsers = await getOncallUsers(escalationPolicyId);            
+            const onCallUsersResponse: PagerDutyOnCallUsersResponse = {
+                users: oncallUsers
+            };
 
-            response.json(oncallUsers);
+            response.json(onCallUsersResponse);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json(`${error.message}`);
+            }
+        }
+    });
+
+    // GET /services/:serviceId
+    router.get('/services/:serviceId', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const serviceId: string = request.params.serviceId || '';
+
+            if (serviceId === '') {
+                response.status(400).json("Bad Request: 'serviceId' is required");
+            }
+
+            const service = await getServiceById(serviceId);
+            const serviceResponse: PagerDutyServiceResponse = {
+                service: service
+            }
+
+            response.json(serviceResponse);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json(`${error.message}`);
+            }
+        }
+    });
+
+    // GET /services?integration_key=:integrationKey
+    router.get('/services', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const integrationKey: string = request.query.integration_key as string || '';
+
+            if (integrationKey === '') {
+                response.status(400).json("Bad Request: 'serviceId' is required");
+            }
+
+            const service = await getServiceByIntegrationKey(integrationKey);
+            const serviceResponse: PagerDutyServiceResponse = {
+                service: service
+            }
+
+            response.json(serviceResponse);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json(`${error.message}`);
+            }
+        }
+    });
+
+    // GET /services/:serviceId/change-events
+    router.get('/services/:serviceId/change-events', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const serviceId: string = request.params.serviceId || '';
+
+            if (serviceId === '') {
+                response.status(400).json("Bad Request: 'serviceId' is required");
+            }
+
+            const changeEvents = await getChangeEvents(serviceId);
+            const changeEventsResponse: PagerDutyChangeEventsResponse = {
+                change_events: changeEvents
+            }
+
+            response.json(changeEventsResponse);
         } catch (error) {
             if (error instanceof HttpError) {
                 response.status(error.status).json(`${error.message}`);
