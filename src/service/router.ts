@@ -3,8 +3,8 @@ import { Config } from '@backstage/config';
 import express from 'express';
 import Router from 'express-promise-router';
 import { Logger } from 'winston';
-import { getAllEscalationPolicies } from '../apis/pagerduty';
-import { HttpError } from '../types';
+import { getAllEscalationPolicies, getOncallUsers } from '../apis/pagerduty';
+import { HttpError } from '@pagerduty/backstage-plugin-common';
 
 export interface RouterOptions {
     logger: Logger;
@@ -34,6 +34,7 @@ export async function createRouter(
     router.get('/escalation_policies', async (_, response) => {                    
         try {
             const escalationPolicyList = await getAllEscalationPolicies();
+            
             const escalationPolicyDropDownOptions = escalationPolicyList.map((policy) => {
                 return {
                     label: policy.name,
@@ -42,6 +43,26 @@ export async function createRouter(
             });
 
             response.json(escalationPolicyDropDownOptions);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json(`${error.message}`);
+            }
+        }
+    });
+
+    // GET /oncall
+    router.get('/oncall-users', async (request, response) => {                    
+        try {
+            // Get the escalation policy ID from the request parameters with parameter name "escalation_policy_ids[]"
+            const escalationPolicyId : string = request.query.escalation_policy_ids as string || '';
+
+            if (escalationPolicyId === '') {
+                response.status(400).json('Bad Request: Escalation Policy ID is required');
+            }
+
+            const oncallUsers = await getOncallUsers(escalationPolicyId);            
+
+            response.json(oncallUsers);
         } catch (error) {
             if (error instanceof HttpError) {
                 response.status(error.status).json(`${error.message}`);
