@@ -14,7 +14,9 @@ import {
     PagerDutyUser,
     PagerDutyService,
     PagerDutyChangeEventsResponse,
-    PagerDutyChangeEvent
+    PagerDutyChangeEvent,
+    PagerDutyIncident,
+    PagerDutyIncidentsResponse
 } from '@pagerduty/backstage-plugin-common';
 
 // Supporting custom actions
@@ -230,6 +232,7 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
 
 async function getEscalationPolicies(offset: number, limit: number): Promise<[Boolean, PagerDutyEscalationPolicy[]]> {
     let response: Response;
+    const params = `total=true&sort_by=name&offset=${offset}&limit=${limit}`;
     const options: RequestInit = {
         method: 'GET',
         headers: {
@@ -241,7 +244,7 @@ async function getEscalationPolicies(offset: number, limit: number): Promise<[Bo
     const baseUrl = 'https://api.pagerduty.com/escalation_policies';
 
     try {
-        response = await fetch(`${baseUrl}?total=true&sort_by=name&offset=${offset}&limit=${limit}`, options);
+        response = await fetch(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve escalation policies: ${error}`);
     }
@@ -340,6 +343,7 @@ export async function isEventNoiseReductionEnabled(): Promise<boolean> {
 
 export async function getOncallUsers(escalationPolicy: string): Promise<PagerDutyUser[]> {
     let response: Response;
+    const params = `time_zone=UTC&include[]=users&escalation_policy_ids[]=${escalationPolicy}`;
     const options: RequestInit = {
         method: 'GET',
         headers: {
@@ -351,7 +355,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
     const baseUrl = 'https://api.pagerduty.com/oncalls';
 
     try {
-        response = await fetch(`${baseUrl}?time_zone=UTC&include[]=users&escalation_policy_ids[]=${escalationPolicy}`, options);
+        response = await fetch(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve oncalls: ${error}`);
     }
@@ -411,6 +415,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
 
 export async function getServiceById(serviceId: string): Promise<PagerDutyService> {
     let response: Response;
+    const params = `time_zone=UTC&include[]=integrations&include[]=escalation_policies`;
     const options: RequestInit = {
         method: 'GET',
         headers: {
@@ -422,7 +427,7 @@ export async function getServiceById(serviceId: string): Promise<PagerDutyServic
     const baseUrl = 'https://api.pagerduty.com/services';
 
     try {
-        response = await fetch(`${baseUrl}/${serviceId}?time_zone=UTC&include[]=integrations&include[]=escalation_policies`, options);
+        response = await fetch(`${baseUrl}/${serviceId}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve service: ${error}`);
     }
@@ -452,6 +457,7 @@ export async function getServiceById(serviceId: string): Promise<PagerDutyServic
 
 export async function getServiceByIntegrationKey(integrationKey: string): Promise<PagerDutyService> {
     let response: Response;
+    const params = `query=${integrationKey}&time_zone=UTC&include[]=integrations&include[]=escalation_policies`;
     const options: RequestInit = {
         method: 'GET',
         headers: {
@@ -463,7 +469,7 @@ export async function getServiceByIntegrationKey(integrationKey: string): Promis
     const baseUrl = 'https://api.pagerduty.com/services';
 
     try {
-        response = await fetch(`${baseUrl}?query=${integrationKey}&time_zone=UTC&include[]=integrations&include[]=escalation_policies`, options);
+        response = await fetch(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve service: ${error}`);
     }
@@ -534,5 +540,49 @@ export async function getChangeEvents(serviceId: string): Promise<PagerDutyChang
         return result.change_events;
     } catch (error) {
         throw new HttpError(`Failed to parse change events information: ${error}`, 500);
+    }
+}
+
+export async function getIncidents(serviceId: string): Promise<PagerDutyIncident[]> {
+    let response: Response;
+    const params = `time_zone=UTC&edgedsort_by=created_at&statuses[]=triggered&statuses[]=acknowl&service_ids[]=${serviceId}`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = 'https://api.pagerduty.com/incidents';
+
+    try {
+        response = await fetch(`${baseUrl}?${params}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve incidents for service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to get incidents for service. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 402:
+            throw new HttpError("Failed to get incidents for service. Account does not have the abilities to perform the action. Please review the response for the required abilities.", 402);
+        case 403:
+            throw new HttpError("Failed to get incidents for service. Caller is not authorized to view the requested resource.", 403);
+        case 429:
+            throw new HttpError("Failed to get incidents for service. Too many requests have been made, the rate limit has been reached.", 429);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyIncidentsResponse;
+    try {
+        result = await response.json();
+
+        return result.incidents;
+    } catch (error) {
+        throw new HttpError(`Failed to parse incidents information: ${error}`, 500);
     }
 }

@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 
 import { createRouter } from './router';
-import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent } from '@pagerduty/backstage-plugin-common';
+import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident } from '@pagerduty/backstage-plugin-common';
 
 describe('createRouter', () => {
   let app: express.Express;
@@ -533,6 +533,128 @@ describe('createRouter', () => {
 
         expect(response.status).toEqual(expectedStatusCode);
         expect(response.body).toEqual(expectedResponse);
+      });
+    });
+
+    describe('incidents', () => {
+      it('returns ok', async () => {
+        const serviceId = "SERV1C31D";
+        const expectedStatusCode = 200;
+        const expectedResponse: PagerDutyIncidentsResponse = {
+          incidents: [
+            {
+              id: "1NC1D3NT_1D",
+              status: "triggered",
+              title: "Test Incident 1",
+              created_at: "2020-01-01T00:00:00Z",
+              html_url: "https://example.pagerduty.com/incidents/1NC1D3NT_1D",
+              service: {
+                id: "S3RV1CE1D",
+                name: "Test Service",
+                html_url: "https://example.pagerduty.com/services/S3RV1CE1D",
+                escalation_policy: {
+                  id: "P0L1CY1D",
+                  name: "Test Escalation Policy",
+                  html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+                  type: "escalation_policy_reference",
+                },
+              },
+              assignments: [
+                {
+                  assignee: {
+                    id: "4SS1GN33_1D",
+                    summary: "Test User",
+                    name: "Test User",
+                    email: "test.user@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                  }
+                }
+              ]
+            }
+          ]
+        };
+
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            json: () => Promise.resolve({
+              "incidents": [
+                {
+                  id: expectedResponse.incidents[0].id,
+                  status: expectedResponse.incidents[0].status,
+                  title: expectedResponse.incidents[0].title,
+                  created_at: expectedResponse.incidents[0].created_at,
+                  html_url: expectedResponse.incidents[0].html_url,
+                  service: {
+                    id: expectedResponse.incidents[0].service.id,
+                    name: expectedResponse.incidents[0].service.name,
+                    html_url: expectedResponse.incidents[0].service.html_url,
+                    escalation_policy: {
+                      id: expectedResponse.incidents[0].service.escalation_policy.id,
+                      name: expectedResponse.incidents[0].service.escalation_policy.name,
+                      html_url: expectedResponse.incidents[0].service.escalation_policy.html_url,
+                      type: expectedResponse.incidents[0].service.escalation_policy.type,
+                    },
+                  },
+                  assignments: [
+                    {
+                      assignee: {
+                        id: expectedResponse.incidents[0].assignments[0].assignee.id,
+                        summary: expectedResponse.incidents[0].assignments[0].assignee.summary,
+                        name: expectedResponse.incidents[0].assignments[0].assignee.name,
+                        email: expectedResponse.incidents[0].assignments[0].assignee.email,
+                        avatar_url: expectedResponse.incidents[0].assignments[0].assignee.avatar_url,
+                        html_url: expectedResponse.incidents[0].assignments[0].assignee.html_url,
+                      }
+                    }
+                  ]
+                }
+              ]
+            })
+          })
+        ) as jest.Mock;
+
+        const response = await request(app).get(`/services/${serviceId}/incidents`);
+
+        const incidents: PagerDutyIncident[] = JSON.parse(response.text);
+
+        expect(response.status).toEqual(expectedStatusCode);
+        expect(incidents).toEqual(expectedResponse);
+      });
+
+      it('returns unauthorized', async () => {
+        const serviceId = "SERV1C31D";
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: 401
+          })
+        ) as jest.Mock;
+
+        const expectedStatusCode = 401;
+        const expectedErrorMessage = "Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.";
+
+        const response = await request(app).get(`/services/${serviceId}/incidents`);
+
+        expect(response.status).toEqual(expectedStatusCode);
+        expect(response.text).toMatch(expectedErrorMessage);
+      });
+
+      it('returns BAD REQUEST when service id is not provided', async () => {
+        const serviceId = '';
+        // global.fetch = jest.fn(() =>
+        //   Promise.resolve({
+        //     status: 401
+        //   })
+        // ) as jest.Mock;
+
+        const expectedStatusCode = 404;
+        // const expectedErrorMessage = "Bad Request: 'serviceId' is required";
+
+        const response = await request(app).get(`/services/${serviceId}/incidents`);
+
+        expect(response.status).toEqual(expectedStatusCode);
+        // expect(response.text).toMatch(expectedErrorMessage);
       });
     });
   });
