@@ -545,7 +545,7 @@ export async function getChangeEvents(serviceId: string): Promise<PagerDutyChang
 
 export async function getIncidents(serviceId: string): Promise<PagerDutyIncident[]> {
     let response: Response;
-    const params = `time_zone=UTC&edgedsort_by=created_at&statuses[]=triggered&statuses[]=acknowl&service_ids[]=${serviceId}`;
+    const params = `time_zone=UTC&sort_by=created_at&statuses[]=triggered&statuses[]=acknowledged&service_ids[]=${serviceId}`;
     const options: RequestInit = {
         method: 'GET',
         headers: {
