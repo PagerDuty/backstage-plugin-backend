@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-conditional-expect */
-import { HttpError } from "../types";
-import { createService, createServiceIntegration, getAllEscalationPolicies } from "./pagerduty";
+import { HttpError, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
+import { createService, createServiceIntegration, getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from "./pagerduty";
 
 describe("PagerDuty API", () => {
     afterEach(() => {
@@ -29,7 +29,7 @@ describe("PagerDuty API", () => {
                     json: () => Promise.resolve({
                         service: {
                             id: "S3RV1CE1D",
-                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
                         }
                     })
                 })
@@ -64,7 +64,7 @@ describe("PagerDuty API", () => {
                     json: () => Promise.resolve({
                         service: {
                             id: "S3RV1CE1D",
-                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
                         }
                     })
                 })
@@ -99,7 +99,7 @@ describe("PagerDuty API", () => {
                     json: () => Promise.resolve({
                         service: {
                             id: "S3RV1CE1D",
-                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
                         }
                     })
                 })
@@ -134,7 +134,7 @@ describe("PagerDuty API", () => {
                     json: () => Promise.resolve({
                         service: {
                             id: "S3RV1CE1D",
-                            htmlUrl: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
                         }
                     })
                 })
@@ -610,6 +610,904 @@ describe("PagerDuty API", () => {
             expect(result).toEqual(expectedResponse);
             expect(result.length).toEqual(10);
             expect(fetch).toHaveBeenCalledTimes(5);
+        });
+    });
+
+    describe("getOncallUsers", () => {
+        it("should return list of users ordered by name ASC from escalation policy level 1", async () => {
+            const escalationPolicyId = "12345";
+            const expectedResponse = [
+                {
+                    id: "userId2",
+                    name: "Jane Doe",
+                    email: "jane.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "Jane Doe",
+                },
+                {
+                    id: "userId1",
+                    name: "John Doe",
+                    email: "john.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "John Doe",
+                }
+            ];
+
+            const mockAPIResponse = {
+                "oncalls": [
+                    {
+                        "user": {
+                            "id": expectedResponse[0].id,
+                            "summary": expectedResponse[0].summary,
+                            "name": expectedResponse[0].name,
+                            "email": expectedResponse[0].email,
+                            "avatar_url": expectedResponse[0].avatar_url,
+                            "html_url": expectedResponse[0].html_url,
+                        },
+                        "escalation_level": 1
+                    },
+                    {
+                        "user": {
+                            "id": expectedResponse[1].id,
+                            "summary": expectedResponse[1].summary,
+                            "name": expectedResponse[1].name,
+                            "email": expectedResponse[1].email,
+                            "avatar_url": expectedResponse[1].avatar_url,
+                            "html_url": expectedResponse[1].html_url,
+                        },
+                        "escalation_level": 1
+                    },
+                    {
+                        "user": {
+                            "id": "userId3",
+                            "summary": "James Doe",
+                            "name": "James Doe",
+                            "email": "james.does@email.com",
+                            "avatar_url": "https://example.pagerduty.com/avatars/123",
+                            "html_url": "https://example.pagerduty.com/users/123",
+                        },
+                        "escalation_level": 2
+                    }
+                ]
+            };
+
+            global.fetch = jest.fn(() =>
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve(mockAPIResponse)
+                })
+            ) as jest.Mock;
+
+            const result = await getOncallUsers(escalationPolicyId);
+
+            expect(result).toEqual(expectedResponse);
+            expect(result.length).toEqual(2);
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it("should return single user from escalation policy level 1", async () => {
+            const escalationPolicyId = "12345";
+            const expectedResponse = [
+                {
+                    id: "userId1",
+                    name: "John Doe",
+                    email: "john.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "John Doe",
+                }
+            ];
+
+            const mockAPIResponse = {
+                "oncalls": [
+                    {
+                        "user": {
+                            "id": expectedResponse[0].id,
+                            "summary": expectedResponse[0].summary,
+                            "name": expectedResponse[0].name,
+                            "email": expectedResponse[0].email,
+                            "avatar_url": expectedResponse[0].avatar_url,
+                            "html_url": expectedResponse[0].html_url,
+                        },
+                        "escalation_level": 1
+                    },
+                    {
+                        "user": {
+                            "id": "userId2",
+                            "summary": "James Doe",
+                            "name": "James Doe",
+                            "email": "james.does@email.com",
+                            "avatar_url": "https://example.pagerduty.com/avatars/123",
+                            "html_url": "https://example.pagerduty.com/users/123",
+                        },
+                        "escalation_level": 2
+                    }
+                ]
+            };
+
+            global.fetch = jest.fn(() =>
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve(mockAPIResponse)
+                })
+            ) as jest.Mock;
+
+            const result = await getOncallUsers(escalationPolicyId);
+
+            expect(result).toEqual(expectedResponse);
+            expect(result.length).toEqual(1);
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it("should return list of users ordered by name ASC from other escalation levels when level 1 is empty", async () => {
+            const escalationPolicyId = "12345";
+            const expectedResponse = [
+                {
+                    id: "userId2",
+                    name: "Jane Doe",
+                    email: "jane.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "Jane Doe",
+                },
+                {
+                    id: "userId1",
+                    name: "John Doe",
+                    email: "john.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "John Doe",
+                }
+            ];
+
+            const mockAPIResponse = {
+                "oncalls": [
+                    {
+                        "user": {
+                            "id": expectedResponse[0].id,
+                            "summary": expectedResponse[0].summary,
+                            "name": expectedResponse[0].name,
+                            "email": expectedResponse[0].email,
+                            "avatar_url": expectedResponse[0].avatar_url,
+                            "html_url": expectedResponse[0].html_url,
+                        },
+                        "escalation_level": 2
+                    },
+                    {
+                        "user": {
+                            "id": expectedResponse[1].id,
+                            "summary": expectedResponse[1].summary,
+                            "name": expectedResponse[1].name,
+                            "email": expectedResponse[1].email,
+                            "avatar_url": expectedResponse[1].avatar_url,
+                            "html_url": expectedResponse[1].html_url,
+                        },
+                        "escalation_level": 2
+                    },
+                    {
+                        "user": {
+                            "id": "userId3",
+                            "summary": "James Doe",
+                            "name": "James Doe",
+                            "email": "james.does@email.com",
+                            "avatar_url": "https://example.pagerduty.com/avatars/123",
+                            "html_url": "https://example.pagerduty.com/users/123",
+                        },
+                        "escalation_level": 3
+                    }
+                ]
+            };
+
+            global.fetch = jest.fn(() =>
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve(mockAPIResponse)
+                })
+            ) as jest.Mock;
+
+            const result = await getOncallUsers(escalationPolicyId);
+
+            expect(result).toEqual(expectedResponse);
+            expect(result.length).toEqual(2);
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it("should return list of users ordered by name ASC without duplicates", async () => {
+            const escalationPolicyId = "12345";
+            const expectedResponse = [
+                {
+                    id: "userId2",
+                    name: "Jane Doe",
+                    email: "jane.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "Jane Doe",
+                },
+                {
+                    id: "userId1",
+                    name: "John Doe",
+                    email: "john.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "John Doe",
+                }
+            ];
+
+            const mockAPIResponse = {
+                "oncalls": [
+                    {
+                        "user": {
+                            "id": expectedResponse[0].id,
+                            "summary": expectedResponse[0].summary,
+                            "name": expectedResponse[0].name,
+                            "email": expectedResponse[0].email,
+                            "avatar_url": expectedResponse[0].avatar_url,
+                            "html_url": expectedResponse[0].html_url,
+                        },
+                        "escalation_level": 1
+                    },
+                    {
+                        "user": {
+                            "id": expectedResponse[1].id,
+                            "summary": expectedResponse[1].summary,
+                            "name": expectedResponse[1].name,
+                            "email": expectedResponse[1].email,
+                            "avatar_url": expectedResponse[1].avatar_url,
+                            "html_url": expectedResponse[1].html_url,
+                        },
+                        "escalation_level": 1
+                    },
+                    {
+                        "user": {
+                            "id": expectedResponse[0].id,
+                            "summary": expectedResponse[0].summary,
+                            "name": expectedResponse[0].name,
+                            "email": expectedResponse[0].email,
+                            "avatar_url": expectedResponse[0].avatar_url,
+                            "html_url": expectedResponse[0].html_url,
+                        },
+                        "escalation_level": 1
+                    }
+                ]
+            };
+
+            global.fetch = jest.fn(() =>
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve(mockAPIResponse)
+                })
+            ) as jest.Mock;
+
+            const result = await getOncallUsers(escalationPolicyId);
+
+            expect(result).toEqual(expectedResponse);
+            expect(result.length).toEqual(2);
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("getServices", () => {
+        describe("getServicesByIntegrationKey", () => {
+            it("should return service when 'integration_key' is provided", async () => {
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedResponse: PagerDutyService = {
+                    id: "S3RV1CE1D",
+                    name: "Test Service",
+                    description: "Test Service Description",
+                    html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                    escalation_policy: {
+                        id: "P0L1CY1D",
+                        name: "Test Escalation Policy",
+                        html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                        type: "escalation_policy_reference",
+                    },
+                    status: "active",
+                };
+
+                const mockAPIResponse = {
+                    "services": [
+                        {
+                            "id": expectedResponse.id,
+                            "name": expectedResponse.name,
+                            "description": expectedResponse.description,
+                            "status": expectedResponse.status,
+                            "escalation_policy": {
+                                "id": expectedResponse.escalation_policy.id,
+                                "name": expectedResponse.escalation_policy.name,
+                                "type": expectedResponse.escalation_policy.type,
+                                "html_url": expectedResponse.escalation_policy.html_url
+                            },
+                            "html_url": expectedResponse.html_url
+                        }
+                    ],
+                    "limit": 25,
+                    "offset": 0,
+                    "total": null,
+                    "more": false
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getServiceByIntegrationKey(integrationKey);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get service when caller provides invalid arguments", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get service. Caller provided invalid arguments.";
+
+                try {
+                    await getServiceByIntegrationKey(integrationKey);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getServiceByIntegrationKey(integrationKey);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service if credentials do not provided the required permissions", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 403
+                    })
+                ) as jest.Mock;
+
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedStatusCode = 403;
+                const expectedErrorMessage = "Failed to get service. Caller is not authorized to view the requested resource.";
+
+                try {
+                    await getServiceByIntegrationKey(integrationKey);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service if service does not exist", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 404
+                    })
+                ) as jest.Mock;
+
+                const integrationKey = "INT3GR4T10N_K3Y";
+                const expectedStatusCode = 404;
+                const expectedErrorMessage = "Failed to get service. The requested resource was not found.";
+
+                try {
+                    await getServiceByIntegrationKey(integrationKey);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+        
+        describe("getServicesById", () => {
+            it("should return service when 'service_id' is provided", async () => {
+                const serviceId = "SERV1C31D";
+                const expectedResponse: PagerDutyService = {
+                    id: "S3RV1CE1D",
+                    name: "Test Service",
+                    description: "Test Service Description",
+                    html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                    escalation_policy: {
+                        id: "P0L1CY1D",
+                        name: "Test Escalation Policy",
+                        html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                        type: "escalation_policy_reference",
+                    },
+                    status: "active",
+                };
+
+                const mockAPIResponse = {
+                    "service":
+                    {
+                        "id": expectedResponse.id,
+                        "name": expectedResponse.name,
+                        "description": expectedResponse.description,
+                        "status": expectedResponse.status,
+                        "escalation_policy": {
+                            "id": expectedResponse.escalation_policy.id,
+                            "name": expectedResponse.escalation_policy.name,
+                            "type": expectedResponse.escalation_policy.type,
+                            "html_url": expectedResponse.escalation_policy.html_url
+                        },
+                        "html_url": expectedResponse.html_url
+                    }
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getServiceById(serviceId);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get service when caller provides invalid arguments", async () => {
+                const serviceId = "SERV1C31D";
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get service. Caller provided invalid arguments.";
+
+                try {
+                    await getServiceById(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getServiceById(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+
+        describe("getChangeEvents", () => {
+            it("should return change events list", async () => {
+                const serviceId = "SERV1C31D";
+                const expectedResponse: PagerDutyChangeEvent[] = [
+                    {
+                        id: "CH4NG3_3V3NT_1D",
+                        source: "GitHub",
+                        summary: "Test Change Event 1",
+                        timestamp: "2020-01-01T00:00:00Z",
+                        links: [
+                            {
+                                href: "https://example.pagerduty.com/change_events/CH4NG3_3V3NT_1D",
+                                text: "View in PagerDuty",
+                            },
+                        ],
+                        integration: [
+                            {
+                                id: "INT3GR4T10N_1D",
+                                summary: "Test Integration 1",
+                                type: "github",
+                                html_url: "https://example.pagerduty.com/integrations/INT3GR4T10N_1D",
+                            }
+                        ]                       
+                    },
+                    {
+                        id: "CH4NG3_3V3NT_2D",
+                        source: "GitHub",
+                        summary: "Test Change Event 2",
+                        timestamp: "2020-01-01T10:00:00Z",
+                        links: [
+                            {
+                                href: "https://example.pagerduty.com/change_events/CH4NG3_3V3NT_2D",
+                                text: "View in PagerDuty",
+                            },
+                        ],
+                        integration: [
+                            {
+                                id: "INT3GR4T10N_2D",
+                                summary: "Test Integration 2",
+                                type: "github",
+                                html_url: "https://example.pagerduty.com/integrations/INT3GR4T10N_2D",
+                            }
+                        ]
+                    }
+                ];
+
+                const mockAPIResponse = {
+                    "change_events": [
+                        {
+                            "id": expectedResponse[0].id,
+                            "source": expectedResponse[0].source,
+                            "summary": expectedResponse[0].summary,
+                            "timestamp": expectedResponse[0].timestamp,
+                            "links": [
+                                {
+                                    "href": expectedResponse[0].links[0].href,
+                                    "text": expectedResponse[0].links[0].text,
+                                }
+                            ],
+                            "integration": [
+                                {
+                                    "id": expectedResponse[0].integration[0].id,
+                                    "summary": expectedResponse[0].integration[0].summary,
+                                    "type": expectedResponse[0].integration[0].type,
+                                    "html_url": expectedResponse[0].integration[0].html_url,
+                                }
+                            ]
+                        },
+                        {
+                            "id": expectedResponse[1].id,
+                            "source": expectedResponse[1].source,
+                            "summary": expectedResponse[1].summary,
+                            "timestamp": expectedResponse[1].timestamp,
+                            "links": [
+                                {
+                                    "href": expectedResponse[1].links[0].href,
+                                    "text": expectedResponse[1].links[0].text,
+                                }
+                            ],
+                            "integration": [
+                                {
+                                    "id": expectedResponse[1].integration[0].id,
+                                    "summary": expectedResponse[1].integration[0].summary,
+                                    "type": expectedResponse[1].integration[0].type,
+                                    "html_url": expectedResponse[1].integration[0].html_url,
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getChangeEvents(serviceId);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get change events when caller provides invalid arguments", async () => {
+                const serviceId = "SERV1C31D";
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get change events for service. Caller provided invalid arguments.";
+
+                try {
+                    await getChangeEvents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get service when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get change events for service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getChangeEvents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get change events if credentials do not provide necessary permissions", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 403
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 403;
+                const expectedErrorMessage = "Failed to get change events for service. Caller is not authorized to view the requested resource.";
+
+                try {
+                    await getChangeEvents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+
+        describe("getIncidents", () => {
+            it("should return incidents list", async () => {
+                const serviceId = "SERV1C31D";
+                const expectedResponse: PagerDutyIncident[] = [
+                    {
+                        id: "1NC1D3NT_1D",
+                        status: "triggered",
+                        title: "Test Incident 1",
+                        service: {
+                            id: "S3RV1CE1D",
+                            name: "Test Service",
+                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            escalation_policy: {
+                                id: "P0L1CY1D",
+                                name: "Test Escalation Policy",
+                                html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                                type: "escalation_policy_reference",
+                            },
+                        },
+                        created_at: "2020-01-01T00:00:00Z",
+                        html_url: "https://example.pagerduty.com/incidents/1NC1D3NT_1D",
+                        assignments: [
+                            {
+                                assignee: {
+                                    id: "userId1",
+                                    summary: "John Doe",
+                                    name: "John Doe",
+                                    email: "john.doe@email.com",
+                                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                                    html_url: "https://example.pagerduty.com/users/123",
+                                }        
+                            }
+                        ]
+                    },
+                    {
+                        id: "1NC1D3NT_2D",
+                        status: "triggered",
+                        title: "Test Incident 2",
+                        service: {
+                            id: "S3RV1CE1D",
+                            name: "Test Service",
+                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            escalation_policy: {
+                                id: "P0L1CY1D",
+                                name: "Test Escalation Policy",
+                                html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                                type: "escalation_policy_reference",
+                            },
+                        },
+                        created_at: "2020-01-01T10:00:00Z",
+                        html_url: "https://example.pagerduty.com/incidents/1NC1D3NT_2D",
+                        assignments: [
+                            {
+                                assignee: {
+                                    id: "userId1",
+                                    summary: "John Doe",
+                                    name: "John Doe",
+                                    email: "john.doe@email.com",
+                                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                                    html_url: "https://example.pagerduty.com/users/123",
+                                }
+                            }
+                        ]
+                    }
+                ];
+
+                const mockAPIResponse: PagerDutyIncidentsResponse = {
+                    "incidents": [
+                        {
+                            id: expectedResponse[0].id,
+                            status: expectedResponse[0].status,
+                            title: expectedResponse[0].title,
+                            created_at: expectedResponse[0].created_at,
+                            html_url: expectedResponse[0].html_url,
+                            service: {
+                                id: expectedResponse[0].service.id,
+                                name: expectedResponse[0].service.name,
+                                html_url: expectedResponse[0].service.html_url,
+                                escalation_policy: {
+                                    id: expectedResponse[0].service.escalation_policy.id,
+                                    name: expectedResponse[0].service.escalation_policy.name,
+                                    html_url: expectedResponse[0].service.escalation_policy.html_url,
+                                    type: expectedResponse[0].service.escalation_policy.type,
+                                },
+                            },
+                            assignments: [
+                                {
+                                    assignee: {
+                                        id: expectedResponse[0].assignments[0].assignee.id,
+                                        summary: expectedResponse[0].assignments[0].assignee.summary,
+                                        name: expectedResponse[0].assignments[0].assignee.name,
+                                        email: expectedResponse[0].assignments[0].assignee.email,
+                                        avatar_url: expectedResponse[0].assignments[0].assignee.avatar_url,
+                                        html_url: expectedResponse[0].assignments[0].assignee.html_url,
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            id: expectedResponse[1].id,
+                            status: expectedResponse[1].status,
+                            title: expectedResponse[1].title,
+                            created_at: expectedResponse[1].created_at,
+                            html_url: expectedResponse[1].html_url,
+                            service: {
+                                id: expectedResponse[1].service.id,
+                                name: expectedResponse[1].service.name,
+                                html_url: expectedResponse[1].service.html_url,
+                                escalation_policy: {
+                                    id: expectedResponse[1].service.escalation_policy.id,
+                                    name: expectedResponse[1].service.escalation_policy.name,
+                                    html_url: expectedResponse[1].service.escalation_policy.html_url,
+                                    type: expectedResponse[1].service.escalation_policy.type,
+                                },
+                            },
+                            assignments: [
+                                {
+                                    assignee: {
+                                        id: expectedResponse[1].assignments[0].assignee.id,
+                                        summary: expectedResponse[1].assignments[0].assignee.summary,
+                                        name: expectedResponse[1].assignments[0].assignee.name,
+                                        email: expectedResponse[1].assignments[0].assignee.email,
+                                        avatar_url: expectedResponse[1].assignments[0].assignee.avatar_url,
+                                        html_url: expectedResponse[1].assignments[0].assignee.html_url,
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 200,
+                        json: () => Promise.resolve(mockAPIResponse)
+                    })
+                ) as jest.Mock;
+
+                const result = await getIncidents(serviceId);
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("should NOT get incident when caller provides invalid arguments", async () => {
+                const serviceId = "SERV1C31D";
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 400,
+                        json: () => Promise.resolve({})
+                    })
+                ) as jest.Mock;
+
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get incidents for service. Caller provided invalid arguments.";
+
+                try {
+                    await getIncidents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get incidents when correct credentials are not provided", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 401
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getIncidents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get incidents if credentials do not provide the required abilities", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 402
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 402;
+                const expectedErrorMessage = "Failed to get incidents for service. Account does not have the abilities to perform the action. Please review the response for the required abilities.";
+
+                try {
+                    await getIncidents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get incidents if credentials defined do not have the necessary permissions", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 403
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 403;
+                const expectedErrorMessage = "Failed to get incidents for service. Caller is not authorized to view the requested resource.";
+
+                try {
+                    await getIncidents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it("should NOT get incidents if PagerDuty REST API limits have been reached", async () => {
+                global.fetch = jest.fn(() =>
+                    Promise.resolve({
+                        status: 429
+                    })
+                ) as jest.Mock;
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 429;
+                const expectedErrorMessage = "Failed to get incidents for service. Too many requests have been made, the rate limit has been reached.";
+
+                try {
+                    await getIncidents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
         });
     });
 });

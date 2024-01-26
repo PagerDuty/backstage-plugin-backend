@@ -36,8 +36,12 @@
     "yn": "^4.0.0",
     "zod": "^3.22.4"
   },
+  "peerDependencies": {
+    "@pagerduty/backstage-plugin-common": "^0.0.1"
+  },
   "devDependencies": {
     "@backstage/cli": "^0.24.0",
+    "@pagerduty/backstage-plugin-common": "^0.0.1",
     "@types/node": "^20.9.2",
     "@types/supertest": "^2.0.12",
     "@types/webpack-env": "1.18.4",

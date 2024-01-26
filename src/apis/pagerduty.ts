@@ -1,7 +1,25 @@
-import { PagerDutyCreateIntegrationResponse, PagerDutyCreateServiceResponse, PagerDutyEscalationPolicyListResponse, PagerDutyEscalationPolicy, HttpError, PagerDutyAbilitiesListResponse, CreateServiceResponse } from "../types";
+import { 
+    CreateServiceResponse
+} from '../types';
+
+import {
+    PagerDutyServiceResponse,
+    PagerDutyServicesResponse,
+    PagerDutyEscalationPolicy,
+    PagerDutyEscalationPoliciesResponse,
+    PagerDutyIntegrationResponse,
+    PagerDutyAbilitiesResponse,
+    HttpError,
+    PagerDutyOnCallsResponse,
+    PagerDutyUser,
+    PagerDutyService,
+    PagerDutyChangeEventsResponse,
+    PagerDutyChangeEvent,
+    PagerDutyIncident,
+    PagerDutyIncidentsResponse
+} from '@pagerduty/backstage-plugin-common';
 
 // Supporting custom actions
-
 export async function createService(name: string, description: string, escalationPolicyId: string, alertGrouping?: string): Promise<CreateServiceResponse> {
     let alertGroupingParameters = "null";
     let response: Response;
@@ -138,12 +156,12 @@ export async function createService(name: string, description: string, escalatio
             break;
     }
 
-    let result: PagerDutyCreateServiceResponse;
+    let result: PagerDutyServiceResponse;
     try {
         result = await response.json();
 
         const createServiceResult: CreateServiceResponse = {
-            url: result.service.htmlUrl,
+            url: result.service.html_url,
             id: result.service.id,
             alertGrouping: alertGroupingParameters,
         };
@@ -199,11 +217,11 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
             break;
     }
 
-    let result: PagerDutyCreateIntegrationResponse;
+    let result: PagerDutyIntegrationResponse;
     try {
         result = await response.json();
 
-        return result.integration.integration_key;
+        return result.integration.integration_key ?? '';
 
     } catch (error) {
         throw new Error(`Failed to parse service information: ${error}`);
@@ -214,6 +232,7 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
 
 async function getEscalationPolicies(offset: number, limit: number): Promise<[Boolean, PagerDutyEscalationPolicy[]]> {
     let response: Response;
+    const params = `total=true&sort_by=name&offset=${offset}&limit=${limit}`;
     const options: RequestInit = {
         method: 'GET',
         headers: {
@@ -225,7 +244,7 @@ async function getEscalationPolicies(offset: number, limit: number): Promise<[Bo
     const baseUrl = 'https://api.pagerduty.com/escalation_policies';
 
     try {
-        response = await fetch(`${baseUrl}?total=true&sort_by=name&offset=${offset}&limit=${limit}`, options);
+        response = await fetch(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve escalation policies: ${error}`);
     }
@@ -243,11 +262,11 @@ async function getEscalationPolicies(offset: number, limit: number): Promise<[Bo
             break;
     }
 
-    let result: PagerDutyEscalationPolicyListResponse;
+    let result: PagerDutyEscalationPoliciesResponse;
     try {
         result = await response.json();
 
-        return [result.more, result.escalation_policies];
+        return [result.more ?? false, result.escalation_policies];
 
     } catch (error) {
         throw new HttpError(`Failed to parse escalation policy information: ${error}`, 500);
@@ -268,8 +287,12 @@ export async function getAllEscalationPolicies(offset: number = 0): Promise<Page
 
         return results;
     } catch (error) {
-
-        throw new HttpError(`${((error as HttpError).message)}`, ((error as HttpError).status));
+        if (error instanceof HttpError){
+            throw error;
+        }
+        else {
+            throw new HttpError(`${error}`, 500);
+        }
     }
 }
 
@@ -302,7 +325,7 @@ export async function isEventNoiseReductionEnabled(): Promise<boolean> {
             break;
     }
 
-    let result: PagerDutyAbilitiesListResponse;
+    let result: PagerDutyAbilitiesResponse;
     try {
         result = await response.json();
 
@@ -315,5 +338,251 @@ export async function isEventNoiseReductionEnabled(): Promise<boolean> {
 
     } catch (error) {
         throw new Error(`Failed to parse abilities information: ${error}`);
+    }
+}
+
+export async function getOncallUsers(escalationPolicy: string): Promise<PagerDutyUser[]> {
+    let response: Response;
+    const params = `time_zone=UTC&include[]=users&escalation_policy_ids[]=${escalationPolicy}`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = 'https://api.pagerduty.com/oncalls';
+
+    try {
+        response = await fetch(`${baseUrl}?${params}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve oncalls: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to list oncalls. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to list oncalls. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 403:
+            throw new HttpError("Failed to list oncalls. Caller is not authorized to view the requested resource.", 403);
+        case 429:
+            throw new HttpError("Failed to list oncalls. Rate limit exceeded.", 429);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyOnCallsResponse;
+    let usersItem: PagerDutyUser[];
+    try {
+        result = await response.json();
+
+        if (result.oncalls.length !== 0) {
+            const oncallsSorted = [...result.oncalls].sort((a, b) => {
+                return a.escalation_level - b.escalation_level;
+            });
+
+            const oncallsFiltered = oncallsSorted.filter((oncall) => {
+                return oncall.escalation_level === result.oncalls[0].escalation_level;
+            });
+
+            usersItem = [...oncallsFiltered]
+                .sort((a, b) => a.user.name > b.user.name ? 1 : -1)
+                .map((oncall) => oncall.user);
+            
+
+            // remove duplicates from usersItem
+            const uniqueUsers = new Map();
+            usersItem.forEach((user) => {
+                uniqueUsers.set(user.id, user);
+            });
+
+            usersItem.length = 0;
+            uniqueUsers.forEach((user) => {
+                usersItem.push(user);
+            });
+
+            return usersItem;
+        }
+
+        return [];
+
+    } catch (error) {
+        throw new HttpError(`Failed to parse oncall information: ${error}`, 500);
+    }
+}
+
+export async function getServiceById(serviceId: string): Promise<PagerDutyService> {
+    let response: Response;
+    const params = `time_zone=UTC&include[]=integrations&include[]=escalation_policies`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = 'https://api.pagerduty.com/services';
+
+    try {
+        response = await fetch(`${baseUrl}/${serviceId}?${params}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to get service. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to get service. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 403:
+            throw new HttpError("Failed to get service. Caller is not authorized to view the requested resource.", 403);
+        case 404:
+            throw new HttpError("Failed to get service. The requested resource was not found.", 404);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyServiceResponse;
+    try {
+        result = await response.json();
+
+        return result.service;
+    } catch (error) {
+        throw new HttpError(`Failed to parse service information: ${error}`, 500);
+    }
+}
+
+export async function getServiceByIntegrationKey(integrationKey: string): Promise<PagerDutyService> {
+    let response: Response;
+    const params = `query=${integrationKey}&time_zone=UTC&include[]=integrations&include[]=escalation_policies`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = 'https://api.pagerduty.com/services';
+
+    try {
+        response = await fetch(`${baseUrl}?${params}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to get service. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to get service. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 403:
+            throw new HttpError("Failed to get service. Caller is not authorized to view the requested resource.", 403);
+        case 404:
+            throw new HttpError("Failed to get service. The requested resource was not found.", 404);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyServicesResponse;
+    try {
+        result = await response.json();
+    } catch (error) {
+        throw new HttpError(`Failed to parse service information: ${error}`, 500);
+    }
+
+    if (result.services.length === 0) {
+        throw new HttpError(`Failed to get service. The requested resource was not found.`, 404);
+    }
+    
+    return result.services[0];
+}
+
+export async function getChangeEvents(serviceId: string): Promise<PagerDutyChangeEvent[]> {
+    let response: Response;
+    const params = `limit=5&time_zone=UTC&sort_by=timestamp`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = 'https://api.pagerduty.com/services';
+
+    try {
+        response = await fetch(`${baseUrl}/${serviceId}/change_events?${params}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve change events for service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to get change events for service. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to get change events for service. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 403:
+            throw new HttpError("Failed to get change events for service. Caller is not authorized to view the requested resource.", 403);
+        case 404:
+            throw new HttpError("Failed to get change events for service. The requested resource was not found.", 404);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyChangeEventsResponse;
+    try {
+        result = await response.json();
+
+        return result.change_events;
+    } catch (error) {
+        throw new HttpError(`Failed to parse change events information: ${error}`, 500);
+    }
+}
+
+export async function getIncidents(serviceId: string): Promise<PagerDutyIncident[]> {
+    let response: Response;
+    const params = `time_zone=UTC&sort_by=created_at&statuses[]=triggered&statuses[]=acknowledged&service_ids[]=${serviceId}`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = 'https://api.pagerduty.com/incidents';
+
+    try {
+        response = await fetch(`${baseUrl}?${params}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve incidents for service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to get incidents for service. Caller provided invalid arguments.", 400);
+        case 401:
+            throw new HttpError("Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 402:
+            throw new HttpError("Failed to get incidents for service. Account does not have the abilities to perform the action. Please review the response for the required abilities.", 402);
+        case 403:
+            throw new HttpError("Failed to get incidents for service. Caller is not authorized to view the requested resource.", 403);
+        case 429:
+            throw new HttpError("Failed to get incidents for service. Too many requests have been made, the rate limit has been reached.", 429);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyIncidentsResponse;
+    try {
+        result = await response.json();
+
+        return result.incidents;
+    } catch (error) {
+        throw new HttpError(`Failed to parse incidents information: ${error}`, 500);
     }
 }
