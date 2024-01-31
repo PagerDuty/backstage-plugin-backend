@@ -323,7 +323,7 @@ describe('createRouter', () => {
         ) as jest.Mock;
 
         const expectedStatusCode = 404;
-        const expectedResponse = "Failed to get service. The requested resource was not found.";
+        const expectedResponse = { "errors": ["Failed to get service. The requested resource was not found."] };
 
         const response = await request(app).get(`/services?integration_key=${integrationKey}`);
 
@@ -417,7 +417,7 @@ describe('createRouter', () => {
         ) as jest.Mock;
 
         const expectedStatusCode = 404;
-        const expectedResponse = "Failed to get service. The requested resource was not found.";
+        const expectedResponse = {"errors": ["Failed to get service. The requested resource was not found."]};
 
         const response = await request(app).get(`/services/${serviceId}`);
 
@@ -527,7 +527,7 @@ describe('createRouter', () => {
         ) as jest.Mock;
 
         const expectedStatusCode = 404;
-        const expectedResponse = "Failed to get change events for service. The requested resource was not found.";
+        const expectedResponse = { "errors": ["Failed to get change events for service. The requested resource was not found."] };
 
         const response = await request(app).get(`/services/${serviceId}/change-events`);
 
