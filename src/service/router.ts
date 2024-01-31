@@ -45,7 +45,11 @@ export async function createRouter(
             response.json(escalationPolicyDropDownOptions);
         } catch (error) {
             if (error instanceof HttpError) {
-                response.status(error.status).json(`${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
             }
         }
     });
@@ -68,7 +72,11 @@ export async function createRouter(
             response.json(onCallUsersResponse);
         } catch (error) {
             if (error instanceof HttpError) {
-                response.status(error.status).json(`${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
             }
         }
     });
@@ -91,7 +99,11 @@ export async function createRouter(
             response.json(serviceResponse);
         } catch (error) {
             if (error instanceof HttpError) {
-                response.status(error.status).json(`${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
             }
         }
     });
@@ -114,7 +126,11 @@ export async function createRouter(
             response.json(serviceResponse);
         } catch (error) {
             if (error instanceof HttpError) {
-                response.status(error.status).json(`${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
             }
         }
     });
@@ -133,7 +149,11 @@ export async function createRouter(
             response.json(changeEventsResponse);
         } catch (error) {
             if (error instanceof HttpError) {
-                response.status(error.status).json(`${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
             }
         }
     });
@@ -152,7 +172,11 @@ export async function createRouter(
             response.json(incidentsResponse);
         } catch (error) {
             if (error instanceof HttpError) {
-                response.status(error.status).json(`${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
             }
         }
     });
