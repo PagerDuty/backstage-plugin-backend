@@ -2,13 +2,26 @@
 import { HttpError, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
 import { createService, createServiceIntegration, getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from "./pagerduty";
 
+jest.mock("../auth/auth", () => ({
+    getAuthToken: jest.fn().mockReturnValue(Promise.resolve('test-token')),
+    loadAuthConfig: jest.fn().mockReturnValue(Promise.resolve()),
+}));
+
+// jest.spyOn(auth, 'getAuthToken').mockReturnValue(Promise.resolve('test-token'));
+// jest.spyOn(auth, 'loadAuthConfig').mockReturnValue(Promise.resolve());
+
+const testInputs = [
+    "apiToken",
+    "oauth",
+];
+
 describe("PagerDuty API", () => {
     afterEach(() => {
         jest.clearAllMocks();
     });
 
     describe("createService", () => {
-        it("should create a service without event grouping when AIOps is not available", async () => {
+        it.each(testInputs)("should create a service without event grouping when AIOps is not available", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
@@ -41,7 +54,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(2);
         });
 
-        it("should create a service without event grouping when grouping is 'null'", async () => {
+        it.each(testInputs)("should create a service without event grouping when grouping is 'null'", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
@@ -76,7 +89,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(2);
         });
 
-        it("should create a service without event grouping when grouping is undefined", async () => {
+        it.each(testInputs)("should create a service without event grouping when grouping is undefined", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
@@ -111,7 +124,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(2);
         });
 
-        it("should create a service", async () => {
+        it.each(testInputs)("should create a service", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
@@ -146,7 +159,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(2);
         });
 
-        it("should NOT create a service when caller provides invalid arguments", async () => {
+        it.each(testInputs)("should NOT create a service when caller provides invalid arguments", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "";
@@ -175,7 +188,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT create a service when correct credentials are not provided", async () => {
+        it.each(testInputs)("should NOT create a service when correct credentials are not provided", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "";
@@ -204,7 +217,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT create a service when account does not have abilities to perform the action", async () => {
+        it.each(testInputs)("should NOT create a service when account does not have abilities to perform the action", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
@@ -233,7 +246,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT create a service when user is not allowed to view the requested resource", async () => {
+        it.each(testInputs)("should NOT create a service when user is not allowed to view the requested resource", async () => {
             const name = "TestService";
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
@@ -264,7 +277,7 @@ describe("PagerDuty API", () => {
     });
 
     describe("createServiceIntegration", () => {
-        it("should create a service integration", async () => {
+        it.each(testInputs)("should create a service integration", async () => {
             const serviceId = "serviceId";
             const vendorId = "vendorId";
 
@@ -288,7 +301,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
-        it("should NOT create a service integration when caller provides invalid arguments", async () => {
+        it.each(testInputs)("should NOT create a service integration when caller provides invalid arguments", async () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
@@ -307,7 +320,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT create a service integration when correct credentials are not provided", async () => {
+        it.each(testInputs)("should NOT create a service integration when correct credentials are not provided", async () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
@@ -326,7 +339,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT create a service integration when user is not allowed to view the requested resource", async () => {
+        it.each(testInputs)("should NOT create a service integration when user is not allowed to view the requested resource", async () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
@@ -345,7 +358,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT create a service integration when request rate limit is exceeded", async () => {
+        it.each(testInputs)("should NOT create a service integration when request rate limit is exceeded", async () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
@@ -366,7 +379,7 @@ describe("PagerDuty API", () => {
     });
 
     describe("getAllEscalationPolicies", () => {
-        it("should return ok", async () => {
+        it.each(testInputs)("should return ok", async () => {
             const expectedId = "P0L1CY1D";
             const expectedName = "Test Escalation Policy";
 
@@ -398,7 +411,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
-        it("should NOT list escalation policies when caller provides invalid arguments", async () => {
+        it.each(testInputs)("should NOT list escalation policies when caller provides invalid arguments", async () => {
             global.fetch = jest.fn(() =>
                 Promise.resolve({
                     status: 400,
@@ -417,7 +430,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT list escalation policies when correct credentials are not provided", async () => {
+        it.each(testInputs)("should NOT list escalation policies when correct credentials are not provided", async () => {
             global.fetch = jest.fn(() =>
                 Promise.resolve({
                     status: 401
@@ -435,7 +448,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT list escalation policies when account does not have abilities to perform the action", async () => {
+        it.each(testInputs)("should NOT list escalation policies when account does not have abilities to perform the action", async () => {
             global.fetch = jest.fn(() =>
                 Promise.resolve({
                     status: 403
@@ -453,7 +466,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should NOT list escalation policies when user is not allowed to view the requested resource", async () => {
+        it.each(testInputs)("should NOT list escalation policies when user is not allowed to view the requested resource", async () => {
             global.fetch = jest.fn(() =>
                 Promise.resolve({
                     status: 429
@@ -471,7 +484,7 @@ describe("PagerDuty API", () => {
             }
         });
 
-        it("should work with pagination", async () => {
+        it.each(testInputs)("should work with pagination", async () => {
             const expectedId = ["P0L1CY1D1", "P0L1CY1D2", "P0L1CY1D3", "P0L1CY1D4", "P0L1CY1D5", "P0L1CY1D6", "P0L1CY1D7", "P0L1CY1D8", "P0L1CY1D9", "P0L1CY1D10"];
             const expectedName = ["Test Escalation Policy 1", "Test Escalation Policy 2", "Test Escalation Policy 3", "Test Escalation Policy 4", "Test Escalation Policy 5", "Test Escalation Policy 6", "Test Escalation Policy 7", "Test Escalation Policy 8", "Test Escalation Policy 9", "Test Escalation Policy 10"];
 
@@ -614,7 +627,7 @@ describe("PagerDuty API", () => {
     });
 
     describe("getOncallUsers", () => {
-        it("should return list of users ordered by name ASC from escalation policy level 1", async () => {
+        it.each(testInputs)("should return list of users ordered by name ASC from escalation policy level 1", async () => {
             const escalationPolicyId = "12345";
             const expectedResponse = [
                 {
@@ -687,7 +700,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
-        it("should return single user from escalation policy level 1", async () => {
+        it.each(testInputs)("should return single user from escalation policy level 1", async () => {
             const escalationPolicyId = "12345";
             const expectedResponse = [
                 {
@@ -741,7 +754,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
-        it("should return list of users ordered by name ASC from other escalation levels when level 1 is empty", async () => {
+        it.each(testInputs)("should return list of users ordered by name ASC from other escalation levels when level 1 is empty", async () => {
             const escalationPolicyId = "12345";
             const expectedResponse = [
                 {
@@ -814,7 +827,7 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
-        it("should return list of users ordered by name ASC without duplicates", async () => {
+        it.each(testInputs)("should return list of users ordered by name ASC without duplicates", async () => {
             const escalationPolicyId = "12345";
             const expectedResponse = [
                 {
@@ -890,7 +903,7 @@ describe("PagerDuty API", () => {
 
     describe("getServices", () => {
         describe("getServicesByIntegrationKey", () => {
-            it("should return service when 'integration_key' is provided", async () => {
+            it.each(testInputs)("should return service when 'integration_key' is provided", async () => {
                 const integrationKey = "INT3GR4T10N_K3Y";
                 const expectedResponse: PagerDutyService = {
                     id: "S3RV1CE1D",
@@ -941,7 +954,7 @@ describe("PagerDuty API", () => {
                 expect(fetch).toHaveBeenCalledTimes(1);
             });
 
-            it("should NOT get service when caller provides invalid arguments", async () => {
+            it.each(testInputs)("should NOT get service when caller provides invalid arguments", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 400,
@@ -961,7 +974,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get service when correct credentials are not provided", async () => {
+            it.each(testInputs)("should NOT get service when correct credentials are not provided", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 401
@@ -980,7 +993,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get service if credentials do not provided the required permissions", async () => {
+            it.each(testInputs)("should NOT get service if credentials do not provided the required permissions", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 403
@@ -999,7 +1012,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get service if service does not exist", async () => {
+            it.each(testInputs)("should NOT get service if service does not exist", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 404
@@ -1018,9 +1031,9 @@ describe("PagerDuty API", () => {
                 }
             });
         });
-        
+
         describe("getServicesById", () => {
-            it("should return service when 'service_id' is provided", async () => {
+            it.each(testInputs)("should return service when 'service_id' is provided", async () => {
                 const serviceId = "SERV1C31D";
                 const expectedResponse: PagerDutyService = {
                     id: "S3RV1CE1D",
@@ -1066,7 +1079,7 @@ describe("PagerDuty API", () => {
                 expect(fetch).toHaveBeenCalledTimes(1);
             });
 
-            it("should NOT get service when caller provides invalid arguments", async () => {
+            it.each(testInputs)("should NOT get service when caller provides invalid arguments", async () => {
                 const serviceId = "SERV1C31D";
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
@@ -1086,7 +1099,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get service when correct credentials are not provided", async () => {
+            it.each(testInputs)("should NOT get service when correct credentials are not provided", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 401
@@ -1107,7 +1120,7 @@ describe("PagerDuty API", () => {
         });
 
         describe("getChangeEvents", () => {
-            it("should return change events list", async () => {
+            it.each(testInputs)("should return change events list", async () => {
                 const serviceId = "SERV1C31D";
                 const expectedResponse: PagerDutyChangeEvent[] = [
                     {
@@ -1128,7 +1141,7 @@ describe("PagerDuty API", () => {
                                 type: "github",
                                 html_url: "https://example.pagerduty.com/integrations/INT3GR4T10N_1D",
                             }
-                        ]                       
+                        ]
                     },
                     {
                         id: "CH4NG3_3V3NT_2D",
@@ -1210,7 +1223,7 @@ describe("PagerDuty API", () => {
                 expect(fetch).toHaveBeenCalledTimes(1);
             });
 
-            it("should NOT get change events when caller provides invalid arguments", async () => {
+            it.each(testInputs)("should NOT get change events when caller provides invalid arguments", async () => {
                 const serviceId = "SERV1C31D";
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
@@ -1230,7 +1243,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get service when correct credentials are not provided", async () => {
+            it.each(testInputs)("should NOT get service when correct credentials are not provided", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 401
@@ -1249,7 +1262,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get change events if credentials do not provide necessary permissions", async () => {
+            it.each(testInputs)("should NOT get change events if credentials do not provide necessary permissions", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 403
@@ -1270,7 +1283,7 @@ describe("PagerDuty API", () => {
         });
 
         describe("getIncidents", () => {
-            it("should return incidents list", async () => {
+            it.each(testInputs)("should return incidents list", async () => {
                 const serviceId = "SERV1C31D";
                 const expectedResponse: PagerDutyIncident[] = [
                     {
@@ -1299,7 +1312,7 @@ describe("PagerDuty API", () => {
                                     email: "john.doe@email.com",
                                     avatar_url: "https://example.pagerduty.com/avatars/123",
                                     html_url: "https://example.pagerduty.com/users/123",
-                                }        
+                                }
                             }
                         ]
                     },
@@ -1413,9 +1426,9 @@ describe("PagerDuty API", () => {
                 expect(fetch).toHaveBeenCalledTimes(1);
             });
 
-            it("should NOT get incident when caller provides invalid arguments", async () => {
+            it.each(testInputs)("should NOT get incident when caller provides invalid arguments", async () => {
                 const serviceId = "SERV1C31D";
-                global.fetch = jest.fn(() =>
+                global.fetch = jest.fn().mockReturnValueOnce(
                     Promise.resolve({
                         status: 400,
                         json: () => Promise.resolve({})
@@ -1433,12 +1446,12 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get incidents when correct credentials are not provided", async () => {
-                global.fetch = jest.fn(() =>
+            it.each(testInputs)("should NOT get incidents when correct credentials are not provided", async () => {
+                global.fetch = jest.fn().mockReturnValueOnce(
                     Promise.resolve({
                         status: 401
                     })
-                ) as jest.Mock;
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 401;
@@ -1452,12 +1465,12 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get incidents if credentials do not provide the required abilities", async () => {
-                global.fetch = jest.fn(() =>
+            it.each(testInputs)("should NOT get incidents if credentials do not provide the required abilities", async () => {
+                global.fetch = jest.fn().mockReturnValueOnce(
                     Promise.resolve({
                         status: 402
                     })
-                ) as jest.Mock;
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 402;
@@ -1471,12 +1484,12 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get incidents if credentials defined do not have the necessary permissions", async () => {
-                global.fetch = jest.fn(() =>
+            it.each(testInputs)("should NOT get incidents if credentials defined do not have the necessary permissions", async () => {
+                global.fetch = jest.fn().mockReturnValueOnce(
                     Promise.resolve({
                         status: 403
                     })
-                ) as jest.Mock;
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 403;
@@ -1490,7 +1503,7 @@ describe("PagerDuty API", () => {
                 }
             });
 
-            it("should NOT get incidents if PagerDuty REST API limits have been reached", async () => {
+            it.each(testInputs)("should NOT get incidents if PagerDuty REST API limits have been reached", async () => {
                 global.fetch = jest.fn(() =>
                     Promise.resolve({
                         status: 429

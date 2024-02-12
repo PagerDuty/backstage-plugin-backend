@@ -5,6 +5,7 @@ import Router from 'express-promise-router';
 import { Logger } from 'winston';
 import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from '../apis/pagerduty';
 import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse } from '@pagerduty/backstage-plugin-common';
+import { loadAuthConfig } from '../auth/auth';
 
 export interface RouterOptions {
     logger: Logger;
@@ -14,16 +15,10 @@ export interface RouterOptions {
 export async function createRouter(
     options: RouterOptions
 ): Promise<express.Router> {
-    const { logger, config } = options;
+    const { logger, config } = options; 
 
-    // Set the PagerDuty API token as an environment variable if it exists in the config file
-    try {
-        process.env.PAGERDUTY_TOKEN = config.getString('pagerDuty.apiToken');
-    }
-    catch (error) {
-        logger.error(`Failed to retrieve PagerDuty API token from config file: ${error}`);
-        throw error;
-    }
+    // Get authentication Config
+    await loadAuthConfig(logger, config);
 
     // Create the router
     const router = Router();

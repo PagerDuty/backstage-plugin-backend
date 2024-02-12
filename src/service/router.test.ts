@@ -6,6 +6,16 @@ import request from 'supertest';
 import { createRouter } from './router';
 import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident } from '@pagerduty/backstage-plugin-common';
 
+jest.mock("../auth/auth", () => ({
+  getAuthToken: jest.fn().mockReturnValue(Promise.resolve('test-token')),
+  loadAuthConfig: jest.fn().mockReturnValue(Promise.resolve()),
+}));
+
+const testInputs = [
+  "apiToken",
+  "oauth",
+];
+
 describe('createRouter', () => {
   let app: express.Express;
 
@@ -18,7 +28,13 @@ describe('createRouter', () => {
             baseUrl: 'https://example.com/extra-path',
           },
           pagerDuty: {
-            apiToken: `${process.env.PAGERDUTY_TOKEN}`,
+            apiToken: 'test-token',
+            oauth: {
+              clientId: 'test-client-id',
+              clientSecret: 'test-client',
+              subDomain: 'test-subdomain',
+              region: 'EU',
+            }
           },
         }),
       }
@@ -40,7 +56,7 @@ describe('createRouter', () => {
   });
 
   describe('GET /escalation_policies', () => {
-    it('returns ok', async () => {
+    it.each(testInputs)('returns ok', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
           status: 200,
@@ -76,7 +92,7 @@ describe('createRouter', () => {
       expect(policies.length).toEqual(1);
     });
 
-    it('returns unauthorized', async () => {
+    it.each(testInputs)('returns unauthorized', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
           status: 401
@@ -92,7 +108,7 @@ describe('createRouter', () => {
       expect(response.text).toMatch(expectedErrorMessage);
     });
 
-    it('returns empty list when no escalation policies exist', async () => {
+    it.each(testInputs)('returns empty list when no escalation policies exist', async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
           status: 200,
@@ -116,7 +132,7 @@ describe('createRouter', () => {
   });
 
   describe('GET /oncall-users', () => {
-    it('returns ok', async () => {
+    it.each(testInputs)('returns ok', async () => {
       const escalationPolicyId = "12345";
       const expectedStatusCode = 200;
       const expectedResponse: PagerDutyOnCallUsersResponse = {
@@ -184,7 +200,7 @@ describe('createRouter', () => {
       expect(oncallUsersResponse.users.length).toEqual(2);
     });
 
-    it('returns unauthorized', async () => {
+    it.each(testInputs)('returns unauthorized', async () => {
       const escalationPolicyId = "12345";
       global.fetch = jest.fn(() =>
         Promise.resolve({
@@ -201,7 +217,7 @@ describe('createRouter', () => {
       expect(response.text).toMatch(expectedErrorMessage);
     });
 
-    it('returns empty list when no escalation policies exist', async () => {
+    it.each(testInputs)('returns empty list when no escalation policies exist', async () => {
       const escalationPolicyId = "12345";
       global.fetch = jest.fn(() =>
         Promise.resolve({
@@ -231,7 +247,7 @@ describe('createRouter', () => {
 
   describe('GET /services', () => {
     describe('with integration key', () => {
-      it('returns ok', async () => {
+      it.each(testInputs)('returns ok', async () => {
         const integrationKey = "INT3GR4T10NK3Y";
         const expectedStatusCode = 200;
         const expectedResponse: PagerDutyServiceResponse = {
@@ -288,7 +304,7 @@ describe('createRouter', () => {
 
       });
 
-      it('returns unauthorized', async () => {
+      it.each(testInputs)('returns unauthorized', async () => {
         const integrationKey = "INT3GR4T10NK3Y";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -305,7 +321,7 @@ describe('createRouter', () => {
         expect(response.text).toMatch(expectedErrorMessage);
       });
 
-      it('returns NOT FOUND when integration key does not belong to a service', async () => {
+      it.each(testInputs)('returns NOT FOUND when integration key does not belong to a service', async () => {
         const integrationKey = "INT3GR4T10NK3Y";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -334,7 +350,7 @@ describe('createRouter', () => {
     });
 
     describe('with service id', () => {
-      it('returns ok', async () => {
+      it.each(testInputs)('returns ok', async () => {
         const serviceId = "SERV1C31D";
         const expectedStatusCode = 200;
         const expectedResponse: PagerDutyServiceResponse = {
@@ -383,7 +399,7 @@ describe('createRouter', () => {
         expect(service).toEqual(expectedResponse);
       });
 
-      it('returns unauthorized', async () => {
+      it.each(testInputs)('returns unauthorized', async () => {
         const serviceId = "SERV1C31D";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -400,7 +416,7 @@ describe('createRouter', () => {
         expect(response.text).toMatch(expectedErrorMessage);
       });
 
-      it('returns NOT FOUND if service id does not exist', async () => {
+      it.each(testInputs)('returns NOT FOUND if service id does not exist', async () => {
         const serviceId = "SERV1C31D";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -427,7 +443,7 @@ describe('createRouter', () => {
     });
 
     describe('change-events', () => {
-      it('returns ok', async () => {
+      it.each(testInputs)('returns ok', async () => {
         const serviceId = "SERV1C31D";
         const expectedStatusCode = 200;
         const expectedResponse: PagerDutyChangeEventsResponse = {
@@ -493,7 +509,7 @@ describe('createRouter', () => {
         expect(changeEvents).toEqual(expectedResponse);
       });
 
-      it('returns unauthorized', async () => {
+      it.each(testInputs)('returns unauthorized', async () => {
         const serviceId = "SERV1C31D";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -510,7 +526,7 @@ describe('createRouter', () => {
         expect(response.text).toMatch(expectedErrorMessage);
       });
 
-      it('returns NOT FOUND if service id does not exist', async () => {
+      it.each(testInputs)('returns NOT FOUND if service id does not exist', async () => {
         const serviceId = "SERV1C31D";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -537,7 +553,7 @@ describe('createRouter', () => {
     });
 
     describe('incidents', () => {
-      it('returns ok', async () => {
+      it.each(testInputs)('returns ok', async () => {
         const serviceId = "SERV1C31D";
         const expectedStatusCode = 200;
         const expectedResponse: PagerDutyIncidentsResponse = {
@@ -623,7 +639,7 @@ describe('createRouter', () => {
         expect(incidents).toEqual(expectedResponse);
       });
 
-      it('returns unauthorized', async () => {
+      it.each(testInputs)('returns unauthorized', async () => {
         const serviceId = "SERV1C31D";
         global.fetch = jest.fn(() =>
           Promise.resolve({
@@ -640,21 +656,14 @@ describe('createRouter', () => {
         expect(response.text).toMatch(expectedErrorMessage);
       });
 
-      it('returns BAD REQUEST when service id is not provided', async () => {
+      it.each(testInputs)('returns BAD REQUEST when service id is not provided', async () => {
         const serviceId = '';
-        // global.fetch = jest.fn(() =>
-        //   Promise.resolve({
-        //     status: 401
-        //   })
-        // ) as jest.Mock;
 
         const expectedStatusCode = 404;
-        // const expectedErrorMessage = "Bad Request: 'serviceId' is required";
 
         const response = await request(app).get(`/services/${serviceId}/incidents`);
 
         expect(response.status).toEqual(expectedStatusCode);
-        // expect(response.text).toMatch(expectedErrorMessage);
       });
     });
   });

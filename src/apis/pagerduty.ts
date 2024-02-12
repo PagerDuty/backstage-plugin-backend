@@ -1,5 +1,6 @@
+import { getAuthToken } from '../auth/auth';
 import { 
-    CreateServiceResponse
+    CreateServiceResponse,
 } from '../types';
 
 import {
@@ -9,14 +10,14 @@ import {
     PagerDutyEscalationPoliciesResponse,
     PagerDutyIntegrationResponse,
     PagerDutyAbilitiesResponse,
-    HttpError,
     PagerDutyOnCallsResponse,
     PagerDutyUser,
     PagerDutyService,
     PagerDutyChangeEventsResponse,
     PagerDutyChangeEvent,
     PagerDutyIncident,
-    PagerDutyIncidentsResponse
+    PagerDutyIncidentsResponse,
+    HttpError
 } from '@pagerduty/backstage-plugin-common';
 
 // Supporting custom actions
@@ -126,12 +127,12 @@ export async function createService(name: string, description: string, escalatio
                 break;
         }
     }
-
+    
     const options: RequestInit = {
         method: 'POST',
         body: body,
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -192,7 +193,7 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
             }
         }),
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -236,7 +237,7 @@ async function getEscalationPolicies(offset: number, limit: number): Promise<[Bo
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -302,7 +303,7 @@ export async function isEventNoiseReductionEnabled(): Promise<boolean> {
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -347,7 +348,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -419,7 +420,7 @@ export async function getServiceById(serviceId: string): Promise<PagerDutyServic
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -461,7 +462,7 @@ export async function getServiceByIntegrationKey(integrationKey: string): Promis
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -507,7 +508,7 @@ export async function getChangeEvents(serviceId: string): Promise<PagerDutyChang
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -546,10 +547,11 @@ export async function getChangeEvents(serviceId: string): Promise<PagerDutyChang
 export async function getIncidents(serviceId: string): Promise<PagerDutyIncident[]> {
     let response: Response;
     const params = `time_zone=UTC&sort_by=created_at&statuses[]=triggered&statuses[]=acknowledged&service_ids[]=${serviceId}`;
+
     const options: RequestInit = {
         method: 'GET',
         headers: {
-            Authorization: `Token token=${process.env.PAGERDUTY_TOKEN}`,
+            Authorization: await getAuthToken(),
             'Accept': 'application/vnd.pagerduty+json;version=2',
             'Content-Type': 'application/json',
         },
@@ -586,3 +588,4 @@ export async function getIncidents(serviceId: string): Promise<PagerDutyIncident
         throw new HttpError(`Failed to parse incidents information: ${error}`, 500);
     }
 }
+
