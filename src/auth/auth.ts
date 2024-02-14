@@ -43,12 +43,10 @@ export async function loadAuthConfig(logger: Logger, config: Config) {
             if (!config.getOptional('pagerDuty.oauth')) {
                 
                 logger.error('No PagerDuty OAuth configuration found in config file.');
-                throw new Error("No PagerDuty 'apiToken' or 'oauth' configuration found in config file.");
 
             } else if (!config.getOptionalString('pagerDuty.oauth.clientId') || !config.getOptionalString('pagerDuty.oauth.clientSecret') || !config.getOptionalString('pagerDuty.oauth.subDomain')) {
                 
                 logger.error("Missing required PagerDuty OAuth parameters in config file. 'clientId', 'clientSecret', and 'subDomain' are required. 'region' is optional.");
-                throw new Error('Missing required PagerDuty OAuth parameters in config file.');
 
             } else {
 
@@ -68,7 +66,6 @@ export async function loadAuthConfig(logger: Logger, config: Config) {
     }
     catch (error) {
         logger.error(`Unable to retrieve valid PagerDuty AUTH configuration from config file: ${error}`);
-        throw error;
     }
 }
 
