@@ -3,7 +3,7 @@ import { Config } from '@backstage/config';
 import express from 'express';
 import Router from 'express-promise-router';
 import { Logger } from 'winston';
-import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from '../apis/pagerduty';
+import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, setAPIBaseUrl } from '../apis/pagerduty';
 import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse } from '@pagerduty/backstage-plugin-common';
 import { loadAuthConfig } from '../auth/auth';
 
@@ -20,8 +20,12 @@ export async function createRouter(
     // Get authentication Config
     await loadAuthConfig(logger, config);
 
+    // Get the PagerDuty API Base URL from config
+    const baseUrl = config.getOptionalString('pagerDuty.apiBaseUrl') !== undefined ? config.getString('pagerDuty.apiBaseUrl') : 'https://api.pagerduty.com';
+    setAPIBaseUrl(baseUrl);
+
     // Create the router
-    const router = Router();
+    const router = Router();    
     router.use(express.json());
 
     // Add routes
