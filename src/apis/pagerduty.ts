@@ -20,11 +20,16 @@ import {
     HttpError
 } from '@pagerduty/backstage-plugin-common';
 
+let apiBaseUrl = 'https://api.pagerduty.com';
+export function setAPIBaseUrl(url: string): void {
+    apiBaseUrl = url;
+}
+
 // Supporting custom actions
 export async function createService(name: string, description: string, escalationPolicyId: string, alertGrouping?: string): Promise<CreateServiceResponse> {
     let alertGroupingParameters = "null";
     let response: Response;
-    const baseUrl = 'https://api.pagerduty.com/services';
+    const baseUrl = `${apiBaseUrl}/services`;
 
     // Set default body
     let body = JSON.stringify({
@@ -176,7 +181,7 @@ export async function createService(name: string, description: string, escalatio
 
 export async function createServiceIntegration(serviceId: string, vendorId: string): Promise<string> {
     let response: Response;
-    const baseUrl = 'https://api.pagerduty.com/services';
+    const baseUrl = `${apiBaseUrl}/services`;
     const options: RequestInit = {
         method: 'POST',
         body: JSON.stringify({
@@ -242,7 +247,7 @@ async function getEscalationPolicies(offset: number, limit: number): Promise<[Bo
             'Content-Type': 'application/json',
         },
     };
-    const baseUrl = 'https://api.pagerduty.com/escalation_policies';
+    const baseUrl = `${apiBaseUrl}/escalation_policies`;
 
     try {
         response = await fetch(`${baseUrl}?${params}`, options);
@@ -353,7 +358,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
             'Content-Type': 'application/json',
         },
     };
-    const baseUrl = 'https://api.pagerduty.com/oncalls';
+    const baseUrl = `${apiBaseUrl}/oncalls`;
 
     try {
         response = await fetch(`${baseUrl}?${params}`, options);
@@ -425,7 +430,7 @@ export async function getServiceById(serviceId: string): Promise<PagerDutyServic
             'Content-Type': 'application/json',
         },
     };
-    const baseUrl = 'https://api.pagerduty.com/services';
+    const baseUrl = `${apiBaseUrl}/services`;
 
     try {
         response = await fetch(`${baseUrl}/${serviceId}?${params}`, options);
@@ -467,7 +472,7 @@ export async function getServiceByIntegrationKey(integrationKey: string): Promis
             'Content-Type': 'application/json',
         },
     };
-    const baseUrl = 'https://api.pagerduty.com/services';
+    const baseUrl = `${apiBaseUrl}/services`;
 
     try {
         response = await fetch(`${baseUrl}?${params}`, options);
@@ -513,7 +518,7 @@ export async function getChangeEvents(serviceId: string): Promise<PagerDutyChang
             'Content-Type': 'application/json',
         },
     };
-    const baseUrl = 'https://api.pagerduty.com/services';
+    const baseUrl = `${apiBaseUrl}/services`;
 
     try {
         response = await fetch(`${baseUrl}/${serviceId}/change_events?${params}`, options);
@@ -556,7 +561,7 @@ export async function getIncidents(serviceId: string): Promise<PagerDutyIncident
             'Content-Type': 'application/json',
         },
     };
-    const baseUrl = 'https://api.pagerduty.com/incidents';
+    const baseUrl = `${apiBaseUrl}/incidents`;
 
     try {
         response = await fetch(`${baseUrl}?${params}`, options);
