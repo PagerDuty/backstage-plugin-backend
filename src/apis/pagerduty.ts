@@ -1,3 +1,6 @@
+import fetch from 'node-fetch';
+import type { RequestInit, Response } from 'node-fetch';
+
 import { getAuthToken } from '../auth/auth';
 import { 
     CreateServiceResponse,
