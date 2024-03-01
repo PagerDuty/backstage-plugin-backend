@@ -390,7 +390,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
             });
 
             const oncallsFiltered = oncallsSorted.filter((oncall) => {
-                return oncall.escalation_level === result.oncalls[0].escalation_level;
+                return oncall.escalation_level === oncallsSorted[0].escalation_level;
             });
 
             usersItem = [...oncallsFiltered]

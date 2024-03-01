@@ -754,6 +754,71 @@ describe("PagerDuty API", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
+        it.each(testInputs)("should return relevant users from escalation policy level 1 even if another level is returned first", async () => {
+            const escalationPolicyId = "12345";
+            const expectedResponse = [
+                {
+                    id: "userId1",
+                    name: "John Doe",
+                    email: "john.doe@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                    summary: "John Doe",
+                }
+            ];
+
+            const mockAPIResponse = {
+                "oncalls": [
+                    {
+                        "user": {
+                            "id": "userId3",
+                            "summary": "Jane Doe",
+                            "name": "Jane Doe",
+                            "email": "jane.does@email.com",
+                            "avatar_url": "https://example.pagerduty.com/avatars/123",
+                            "html_url": "https://example.pagerduty.com/users/123",
+                        },
+                        "escalation_level": 3
+                    },
+                    {
+                        "user": {
+                            "id": expectedResponse[0].id,
+                            "summary": expectedResponse[0].summary,
+                            "name": expectedResponse[0].name,
+                            "email": expectedResponse[0].email,
+                            "avatar_url": expectedResponse[0].avatar_url,
+                            "html_url": expectedResponse[0].html_url,
+                        },
+                        "escalation_level": 1
+                    },
+                    {
+                        "user": {
+                            "id": "userId2",
+                            "summary": "James Doe",
+                            "name": "James Doe",
+                            "email": "james.does@email.com",
+                            "avatar_url": "https://example.pagerduty.com/avatars/123",
+                            "html_url": "https://example.pagerduty.com/users/123",
+                        },
+                        "escalation_level": 2
+                    }
+                ]
+            };
+
+            global.fetch = jest.fn(() =>
+                Promise.resolve({
+                    status: 200,
+                    json: () => Promise.resolve(mockAPIResponse)
+                })
+            ) as jest.Mock;
+
+            const result = await getOncallUsers(escalationPolicyId);
+
+            expect(result).toEqual(expectedResponse);
+            expect(result.length).toEqual(1);
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
         it.each(testInputs)("should return list of users ordered by name ASC from other escalation levels when level 1 is empty", async () => {
             const escalationPolicyId = "12345";
             const expectedResponse = [
