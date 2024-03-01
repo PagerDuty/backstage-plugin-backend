@@ -34,12 +34,12 @@ export interface Config {
         apiBaseUrl?: string;
         /**
          * Optional PagerDuty API Token used in API calls from the backend component.
-         * @visibility frontend
+         * @visibility secret
          */
         apiToken?: string;
         /**
          * Optional PagerDuty Scoped OAuth Token used in API calls from the backend component.
-         * @visibility frontend
+         * @deepVisibility secret
          */
         oauth?: PagerDutyOAuthConfig;
     };
