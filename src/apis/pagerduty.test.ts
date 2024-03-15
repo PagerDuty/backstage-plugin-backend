@@ -2,20 +2,29 @@
 import { HttpError, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
 import { createService, createServiceIntegration, getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from "./pagerduty";
 
+import { mocked } from "jest-mock";
+import fetch, { Response } from "node-fetch";
+
+jest.mock("node-fetch");
+
 jest.mock("../auth/auth", () => ({
     getAuthToken: jest.fn().mockReturnValue(Promise.resolve('test-token')),
     loadAuthConfig: jest.fn().mockReturnValue(Promise.resolve()),
 }));
-
-// jest.spyOn(auth, 'getAuthToken').mockReturnValue(Promise.resolve('test-token'));
-// jest.spyOn(auth, 'loadAuthConfig').mockReturnValue(Promise.resolve());
 
 const testInputs = [
     "apiToken",
     "oauth",
 ];
 
-describe("PagerDuty API", () => {
+function mockedResponse(status: number, body: any): Promise<Response> {
+    return Promise.resolve({
+        json: () => Promise.resolve(body),
+        status
+    } as Response);
+}
+
+describe("PagerDuty API", () => {    
     afterEach(() => {
         jest.clearAllMocks();
     });
@@ -28,25 +37,20 @@ describe("PagerDuty API", () => {
 
             const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                        ]
-                    })
-                })
-            ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 201,
-                    json: () => Promise.resolve({
-                        service: {
-                            id: "S3RV1CE1D",
-                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+            mocked(fetch).mockReturnValueOnce(
+                    mockedResponse(200, { abilities: [] })
+                    )
+                .mockReturnValueOnce(
+                    mockedResponse(
+                        201,
+                        {
+                            service: {
+                                id: "S3RV1CE1D",
+                                html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                            }
                         }
-                    })
-                })
-            ) as jest.Mock;
+                    )
+                );
 
             const result = await createService(name, description, escalationPolicyId, "intelligent");
 
@@ -61,27 +65,16 @@ describe("PagerDuty API", () => {
 
             const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, { abilities: ["preview_intelligent_alert_grouping", "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 201,
-                    json: () => Promise.resolve({
-                        service: {
-                            id: "S3RV1CE1D",
-                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
-                        }
-                    })
+                mockedResponse(201, {
+                    service: {
+                        id: "S3RV1CE1D",
+                        html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                    }
                 })
-            ) as jest.Mock;
+            );
 
             const result = await createService(name, description, escalationPolicyId, "null");
 
@@ -96,27 +89,11 @@ describe("PagerDuty API", () => {
 
             const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, { abilities: ["preview_intelligent_alert_grouping", "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 201,
-                    json: () => Promise.resolve({
-                        service: {
-                            id: "S3RV1CE1D",
-                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
-                        }
-                    })
-                })
-            ) as jest.Mock;
+                mockedResponse(201, { service: { id: "S3RV1CE1D", html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D" } })
+            );
 
             const result = await createService(name, description, escalationPolicyId);
 
@@ -131,27 +108,11 @@ describe("PagerDuty API", () => {
 
             const expectedResponse = { "alertGrouping": "null", "id": "S3RV1CE1D", "url": "https://testaccount.pagerduty.com/services/S3RV1CE1D" };
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, { abilities: ["preview_intelligent_alert_grouping", "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 201,
-                    json: () => Promise.resolve({
-                        service: {
-                            id: "S3RV1CE1D",
-                            html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
-                        }
-                    })
-                })
-            ) as jest.Mock;
+                mockedResponse(201, { service: { id: "S3RV1CE1D", html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D" } })
+            );
 
             const result = await createService(name, description, escalationPolicyId);
 
@@ -164,22 +125,11 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "";
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, { abilities: ["preview_intelligent_alert_grouping", "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 400,
-                    json: () => Promise.resolve({})
-                })
-            ) as jest.Mock;
+                mockedResponse(400, {})
+            );
 
             try {
                 await createService(name, description, escalationPolicyId);
@@ -193,22 +143,11 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "";
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, { abilities: ["preview_intelligent_alert_grouping", "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 401,
-                    json: () => Promise.resolve({})
-                })
-            ) as jest.Mock;
+                mockedResponse(401, {})
+            );
 
             try {
                 await createService(name, description, escalationPolicyId);
@@ -222,22 +161,13 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, {
+                    abilities: ["preview_intelligent_alert_grouping",
+                        "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 402,
-                    json: () => Promise.resolve({})
-                })
-            ) as jest.Mock;
+                mockedResponse(402, {})
+            );
 
             try {
                 await createService(name, description, escalationPolicyId);
@@ -251,22 +181,11 @@ describe("PagerDuty API", () => {
             const description = "Test Service Description";
             const escalationPolicyId = "12345";
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        abilities: [
-                            "preview_intelligent_alert_grouping",
-                            "time_based_alert_grouping"
-                        ]
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, { abilities: ["preview_intelligent_alert_grouping", "time_based_alert_grouping"] })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 403,
-                    json: () => Promise.resolve({})
-                })
-            ) as jest.Mock;
+                mockedResponse(403, {})
+            );
 
             try {
                 await createService(name, description, escalationPolicyId);
@@ -283,16 +202,9 @@ describe("PagerDuty API", () => {
 
             const expectedResponse = "integrationId";
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 201,
-                    json: () => Promise.resolve({
-                        integration: {
-                            integration_key: expectedResponse,
-                        }
-                    })
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(201, { integration: { integration_key: expectedResponse } })
+            );
 
 
             const result = await createServiceIntegration(serviceId, vendorId);
@@ -324,11 +236,9 @@ describe("PagerDuty API", () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 401
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(401, {})
+            );
 
             const expectedErrorMessage = "Failed to create service integration. Caller did not supply credentials or did not provide the correct credentials.";
 
@@ -343,11 +253,9 @@ describe("PagerDuty API", () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 403
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(403, {})
+            );
 
             const expectedErrorMessage = "Failed to create service integration. Caller is not authorized to view the requested resource.";
 
@@ -362,11 +270,9 @@ describe("PagerDuty API", () => {
             const serviceId = "serviceId";
             const vendorId = "nonExistentVendorId";
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 429
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(429, {})
+            );
 
             const expectedErrorMessage = "Failed to create service integration. Rate limit exceeded.";
 
@@ -390,19 +296,9 @@ describe("PagerDuty API", () => {
                 }
             ];
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        escalation_policies: [
-                            {
-                                id: expectedId,
-                                name: expectedName,
-                            }
-                        ]
-                    })
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(200, { escalation_policies: [{ id: expectedId, name: expectedName }] })
+            );
 
             const result = await getAllEscalationPolicies();
 
@@ -412,12 +308,10 @@ describe("PagerDuty API", () => {
         });
 
         it.each(testInputs)("should NOT list escalation policies when caller provides invalid arguments", async () => {
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 400,
-                    json: () => Promise.resolve({})
-                })
-            ) as jest.Mock;
+
+            mocked(fetch).mockReturnValue(
+                mockedResponse(400, {})
+            );
 
             const expectedStatusCode = 400;
             const expectedErrorMessage = "Failed to list escalation policies. Caller provided invalid arguments.";
@@ -431,11 +325,9 @@ describe("PagerDuty API", () => {
         });
 
         it.each(testInputs)("should NOT list escalation policies when correct credentials are not provided", async () => {
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 401
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(401, {})
+            );
 
             const expectedStatusCode = 401;
             const expectedErrorMessage = "Failed to list escalation policies. Caller did not supply credentials or did not provide the correct credentials.";
@@ -449,11 +341,9 @@ describe("PagerDuty API", () => {
         });
 
         it.each(testInputs)("should NOT list escalation policies when account does not have abilities to perform the action", async () => {
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 403
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(403, {})
+            );
 
             const expectedStatusCode = 403;
             const expectedErrorMessage = "Failed to list escalation policies. Caller is not authorized to view the requested resource.";
@@ -467,11 +357,9 @@ describe("PagerDuty API", () => {
         });
 
         it.each(testInputs)("should NOT list escalation policies when user is not allowed to view the requested resource", async () => {
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 429
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(429, {})
+            );
 
             const expectedStatusCode = 429;
             const expectedErrorMessage = "Failed to list escalation policies. Rate limit exceeded.";
@@ -531,27 +419,22 @@ describe("PagerDuty API", () => {
                 }
             ];
 
-            global.fetch = jest.fn().mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
-                        escalation_policies: [
-                            {
-                                id: expectedId[0],
-                                name: expectedName[0],
-                            },
-                            {
-                                id: expectedId[1],
-                                name: expectedName[1],
-                            }
-                        ],
-                        more: true
-                    })
-                })
+            mocked(fetch).mockReturnValueOnce(
+                mockedResponse(200, {
+                    escalation_policies: [
+                        {
+                            id: expectedId[0],
+                            name: expectedName[0],
+                        },
+                        {
+                            id: expectedId[1],
+                            name: expectedName[1],
+                        }
+                    ],
+                    more: true
+                })                
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
+                mockedResponse(200, {
                         escalation_policies: [
                             {
                                 id: expectedId[2],
@@ -564,11 +447,8 @@ describe("PagerDuty API", () => {
                         ],
                         more: true
                     })
-                })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
+                mockedResponse(200, {
                         escalation_policies: [
                             {
                                 id: expectedId[4],
@@ -581,11 +461,8 @@ describe("PagerDuty API", () => {
                         ],
                         more: true
                     })
-                })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
+                mockedResponse(200, {
                         escalation_policies: [
                             {
                                 id: expectedId[6],
@@ -598,11 +475,8 @@ describe("PagerDuty API", () => {
                         ],
                         more: true
                     })
-                })
             ).mockReturnValueOnce(
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve({
+                mockedResponse(200, {
                         escalation_policies: [
                             {
                                 id: expectedId[8],
@@ -615,8 +489,7 @@ describe("PagerDuty API", () => {
                         ],
                         more: false
                     })
-                })
-            ) as jest.Mock;
+            );
 
             const result = await getAllEscalationPolicies();
 
@@ -686,12 +559,9 @@ describe("PagerDuty API", () => {
                 ]
             };
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve(mockAPIResponse)
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(200, mockAPIResponse)
+            );
 
             const result = await getOncallUsers(escalationPolicyId);
 
@@ -740,12 +610,9 @@ describe("PagerDuty API", () => {
                 ]
             };
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve(mockAPIResponse)
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(200, mockAPIResponse)
+            );
 
             const result = await getOncallUsers(escalationPolicyId);
 
@@ -805,12 +672,9 @@ describe("PagerDuty API", () => {
                 ]
             };
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve(mockAPIResponse)
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(200, mockAPIResponse)
+            );
 
             const result = await getOncallUsers(escalationPolicyId);
 
@@ -878,12 +742,9 @@ describe("PagerDuty API", () => {
                 ]
             };
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve(mockAPIResponse)
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(200, mockAPIResponse)
+            );
 
             const result = await getOncallUsers(escalationPolicyId);
 
@@ -951,12 +812,9 @@ describe("PagerDuty API", () => {
                 ]
             };
 
-            global.fetch = jest.fn(() =>
-                Promise.resolve({
-                    status: 200,
-                    json: () => Promise.resolve(mockAPIResponse)
-                })
-            ) as jest.Mock;
+            mocked(fetch).mockReturnValue(
+                mockedResponse(200, mockAPIResponse)
+            );
 
             const result = await getOncallUsers(escalationPolicyId);
 
@@ -1006,12 +864,9 @@ describe("PagerDuty API", () => {
                     "more": false
                 };
 
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 200,
-                        json: () => Promise.resolve(mockAPIResponse)
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(200, mockAPIResponse)
+                );
 
                 const result = await getServiceByIntegrationKey(integrationKey);
 
@@ -1020,12 +875,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service when caller provides invalid arguments", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 400,
-                        json: () => Promise.resolve({})
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
 
                 const integrationKey = "INT3GR4T10N_K3Y";
                 const expectedStatusCode = 400;
@@ -1040,11 +892,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service when correct credentials are not provided", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 401
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
+                );
 
                 const integrationKey = "INT3GR4T10N_K3Y";
                 const expectedStatusCode = 401;
@@ -1059,11 +909,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service if credentials do not provided the required permissions", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 403
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(403, {})
+                );
 
                 const integrationKey = "INT3GR4T10N_K3Y";
                 const expectedStatusCode = 403;
@@ -1078,11 +926,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service if service does not exist", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 404
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(404, {})
+                );
 
                 const integrationKey = "INT3GR4T10N_K3Y";
                 const expectedStatusCode = 404;
@@ -1131,12 +977,9 @@ describe("PagerDuty API", () => {
                     }
                 };
 
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 200,
-                        json: () => Promise.resolve(mockAPIResponse)
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(200, mockAPIResponse)
+                );
 
                 const result = await getServiceById(serviceId);
 
@@ -1145,14 +988,11 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service when caller provides invalid arguments", async () => {
-                const serviceId = "SERV1C31D";
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 400,
-                        json: () => Promise.resolve({})
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
 
+                const serviceId = "SERV1C31D";
                 const expectedStatusCode = 400;
                 const expectedErrorMessage = "Failed to get service. Caller provided invalid arguments.";
 
@@ -1165,11 +1005,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service when correct credentials are not provided", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 401
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 401;
@@ -1275,12 +1113,9 @@ describe("PagerDuty API", () => {
                     ]
                 };
 
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 200,
-                        json: () => Promise.resolve(mockAPIResponse)
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(200, mockAPIResponse)
+                );
 
                 const result = await getChangeEvents(serviceId);
 
@@ -1289,14 +1124,11 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get change events when caller provides invalid arguments", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
+                
                 const serviceId = "SERV1C31D";
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 400,
-                        json: () => Promise.resolve({})
-                    })
-                ) as jest.Mock;
-
                 const expectedStatusCode = 400;
                 const expectedErrorMessage = "Failed to get change events for service. Caller provided invalid arguments.";
 
@@ -1309,12 +1141,10 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service when correct credentials are not provided", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 401
-                    })
-                ) as jest.Mock;
-
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
+                );
+                
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 401;
                 const expectedErrorMessage = "Failed to get change events for service. Caller did not supply credentials or did not provide the correct credentials.";
@@ -1328,11 +1158,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get change events if credentials do not provide necessary permissions", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 403
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(403, {})
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 403;
@@ -1478,13 +1306,10 @@ describe("PagerDuty API", () => {
                     ]
                 };
 
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 200,
-                        json: () => Promise.resolve(mockAPIResponse)
-                    })
-                ) as jest.Mock;
-
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(200, mockAPIResponse)
+                );
+                
                 const result = await getIncidents(serviceId);
 
                 expect(result).toEqual(expectedResponse);
@@ -1492,14 +1317,11 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get incident when caller provides invalid arguments", async () => {
-                const serviceId = "SERV1C31D";
-                global.fetch = jest.fn().mockReturnValueOnce(
-                    Promise.resolve({
-                        status: 400,
-                        json: () => Promise.resolve({})
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
 
+                const serviceId = "SERV1C31D";
                 const expectedStatusCode = 400;
                 const expectedErrorMessage = "Failed to get incidents for service. Caller provided invalid arguments.";
 
@@ -1512,12 +1334,10 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get incidents when correct credentials are not provided", async () => {
-                global.fetch = jest.fn().mockReturnValueOnce(
-                    Promise.resolve({
-                        status: 401
-                    })
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
                 );
-
+                
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 401;
                 const expectedErrorMessage = "Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.";
@@ -1531,12 +1351,10 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get incidents if credentials do not provide the required abilities", async () => {
-                global.fetch = jest.fn().mockReturnValueOnce(
-                    Promise.resolve({
-                        status: 402
-                    })
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(402, {})
                 );
-
+                
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 402;
                 const expectedErrorMessage = "Failed to get incidents for service. Account does not have the abilities to perform the action. Please review the response for the required abilities.";
@@ -1550,12 +1368,10 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get incidents if credentials defined do not have the necessary permissions", async () => {
-                global.fetch = jest.fn().mockReturnValueOnce(
-                    Promise.resolve({
-                        status: 403
-                    })
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(403, {})
                 );
-
+                
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 403;
                 const expectedErrorMessage = "Failed to get incidents for service. Caller is not authorized to view the requested resource.";
@@ -1569,12 +1385,10 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get incidents if PagerDuty REST API limits have been reached", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 429
-                    })
-                ) as jest.Mock;
-
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(429, {})
+                );
+                
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 429;
                 const expectedErrorMessage = "Failed to get incidents for service. Too many requests have been made, the rate limit has been reached.";

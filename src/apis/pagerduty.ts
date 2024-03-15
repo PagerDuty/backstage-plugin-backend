@@ -1,3 +1,6 @@
+import fetch from 'node-fetch';
+import type { RequestInit, Response } from 'node-fetch';
+
 import { getAuthToken } from '../auth/auth';
 import { 
     CreateServiceResponse,
@@ -164,7 +167,7 @@ export async function createService(name: string, description: string, escalatio
 
     let result: PagerDutyServiceResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyServiceResponse;
 
         const createServiceResult: CreateServiceResponse = {
             url: result.service.html_url,
@@ -225,7 +228,7 @@ export async function createServiceIntegration(serviceId: string, vendorId: stri
 
     let result: PagerDutyIntegrationResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyIntegrationResponse;
 
         return result.integration.integration_key ?? '';
 
@@ -270,7 +273,7 @@ async function getEscalationPolicies(offset: number, limit: number): Promise<[Bo
 
     let result: PagerDutyEscalationPoliciesResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyEscalationPoliciesResponse;
 
         return [result.more ?? false, result.escalation_policies];
 
@@ -333,7 +336,7 @@ export async function isEventNoiseReductionEnabled(): Promise<boolean> {
 
     let result: PagerDutyAbilitiesResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyAbilitiesResponse;
 
         if (result.abilities.includes('preview_intelligent_alert_grouping')
             && result.abilities.includes('time_based_alert_grouping')) {
@@ -382,7 +385,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
     let result: PagerDutyOnCallsResponse;
     let usersItem: PagerDutyUser[];
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyOnCallsResponse;
 
         if (result.oncalls.length !== 0) {
             const oncallsSorted = [...result.oncalls].sort((a, b) => {
@@ -453,7 +456,7 @@ export async function getServiceById(serviceId: string): Promise<PagerDutyServic
 
     let result: PagerDutyServiceResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyServiceResponse;
 
         return result.service;
     } catch (error) {
@@ -495,7 +498,7 @@ export async function getServiceByIntegrationKey(integrationKey: string): Promis
 
     let result: PagerDutyServicesResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyServicesResponse;
     } catch (error) {
         throw new HttpError(`Failed to parse service information: ${error}`, 500);
     }
@@ -541,7 +544,7 @@ export async function getChangeEvents(serviceId: string): Promise<PagerDutyChang
 
     let result: PagerDutyChangeEventsResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyChangeEventsResponse;
 
         return result.change_events;
     } catch (error) {
@@ -586,7 +589,7 @@ export async function getIncidents(serviceId: string): Promise<PagerDutyIncident
 
     let result: PagerDutyIncidentsResponse;
     try {
-        result = await response.json();
+        result = await response.json() as PagerDutyIncidentsResponse;
 
         return result.incidents;
     } catch (error) {
