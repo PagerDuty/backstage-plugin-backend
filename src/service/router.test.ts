@@ -6,6 +6,11 @@ import request from 'supertest';
 import { createRouter } from './router';
 import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse } from '@pagerduty/backstage-plugin-common';
 
+import { mocked } from "jest-mock";
+import fetch, { Response } from "node-fetch";
+
+jest.mock("node-fetch");
+
 jest.mock("../auth/auth", () => ({
   getAuthToken: jest.fn().mockReturnValue(Promise.resolve('test-token')),
   loadAuthConfig: jest.fn().mockReturnValue(Promise.resolve()),
@@ -15,6 +20,13 @@ const testInputs = [
   "apiToken",
   "oauth",
 ];
+
+function mockedResponse(status: number, body: any): Promise<Response> {
+  return Promise.resolve({
+    json: () => Promise.resolve(body),
+    status
+  } as Response);
+}
 
 describe('createRouter', () => {
   let app: express.Express;
@@ -57,10 +69,7 @@ describe('createRouter', () => {
 
   describe('GET /escalation_policies', () => {
     it.each(testInputs)('returns ok', async () => {
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 200,
-          json: () => Promise.resolve({
+      mocked(fetch).mockReturnValue(mockedResponse(200, {
             escalation_policies: [
               {
                 id: "12345",
@@ -72,8 +81,7 @@ describe('createRouter', () => {
               }
             ]
           })
-        })
-      ) as jest.Mock;
+      );
 
       const expectedStatusCode = 200;
       const expectedResponse = [
@@ -93,11 +101,7 @@ describe('createRouter', () => {
     });
 
     it.each(testInputs)('returns unauthorized', async () => {
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 401
-        })
-      ) as jest.Mock;
+      mocked(fetch).mockReturnValue(mockedResponse(401, {}));
 
       const expectedStatusCode = 401;
       const expectedErrorMessage = "Failed to list escalation policies. Caller did not supply credentials or did not provide the correct credentials.";
@@ -109,14 +113,7 @@ describe('createRouter', () => {
     });
 
     it.each(testInputs)('returns empty list when no escalation policies exist', async () => {
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 200,
-          json: () => Promise.resolve({
-            escalation_policies: []
-          })
-        })
-      ) as jest.Mock;
+      mocked(fetch).mockReturnValue(mockedResponse(200, { escalation_policies: [] }));
 
       const expectedStatusCode = 200;
       const expectedResponse: PagerDutyEscalationPolicy[] = [];
@@ -157,10 +154,7 @@ describe('createRouter', () => {
           ]
       };
 
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 200,
-          json: () => Promise.resolve({
+      mocked(fetch).mockReturnValue(mockedResponse(200, {
             "oncalls": [
               {
                 "user": {
@@ -186,10 +180,7 @@ describe('createRouter', () => {
               }
             ]
           })
-        })
-      ) as jest.Mock;
-
-
+      );
 
       const response = await request(app).get(`/oncall-users?escalation_policy_ids[]=${escalationPolicyId}`);
 
@@ -201,13 +192,9 @@ describe('createRouter', () => {
     });
 
     it.each(testInputs)('returns unauthorized', async () => {
+      mocked(fetch).mockReturnValue(mockedResponse(401, {}));
+      
       const escalationPolicyId = "12345";
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 401
-        })
-      ) as jest.Mock;
-
       const expectedStatusCode = 401;
       const expectedErrorMessage = "Failed to list oncalls. Caller did not supply credentials or did not provide the correct credentials.";
 
@@ -218,18 +205,9 @@ describe('createRouter', () => {
     });
 
     it.each(testInputs)('returns empty list when no escalation policies exist', async () => {
+      mocked(fetch).mockReturnValue(mockedResponse(200, { "oncalls": [] }));
+      
       const escalationPolicyId = "12345";
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          status: 200,
-          json: () => Promise.resolve(
-            {
-              "oncalls": []
-            }
-          )
-        })
-      ) as jest.Mock;
-
       const expectedStatusCode = 200;
       const expectedResponse: PagerDutyOnCallUsersResponse = {
         "users": []
@@ -266,10 +244,7 @@ describe('createRouter', () => {
           }
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
               "services": [
                 {
                   "id": expectedResponse.service.id,
@@ -290,10 +265,7 @@ describe('createRouter', () => {
               "total": null,
               "more": false
             })
-          })
-        ) as jest.Mock;
-
-
+        );
 
         const response = await request(app).get(`/services?integration_key=${integrationKey}`);
 
@@ -305,13 +277,9 @@ describe('createRouter', () => {
       });
 
       it.each(testInputs)('returns unauthorized', async () => {
+        mocked(fetch).mockReturnValue(mockedResponse(401, {}));
+        
         const integrationKey = "INT3GR4T10NK3Y";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 401
-          })
-        ) as jest.Mock;
-
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
 
@@ -322,12 +290,7 @@ describe('createRouter', () => {
       });
 
       it.each(testInputs)('returns NOT FOUND when integration key does not belong to a service', async () => {
-        const integrationKey = "INT3GR4T10NK3Y";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve(
-              {
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
                 "services": [],
                 "limit": 25,
                 "offset": 0,
@@ -335,9 +298,9 @@ describe('createRouter', () => {
                 "more": false
               }
             )
-          })
-        ) as jest.Mock;
+        );
 
+        const integrationKey = "INT3GR4T10NK3Y";
         const expectedStatusCode = 404;
         const expectedResponse = { "errors": ["Failed to get service. The requested resource was not found."] };
 
@@ -369,10 +332,7 @@ describe('createRouter', () => {
           }
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
               "service":
               {
                 "id": expectedResponse.service.id,
@@ -388,8 +348,7 @@ describe('createRouter', () => {
                 "html_url": expectedResponse.service.html_url
               }
             })
-          })
-        ) as jest.Mock;
+        );
 
         const response = await request(app).get(`/services/${serviceId}`);
 
@@ -401,11 +360,7 @@ describe('createRouter', () => {
 
       it.each(testInputs)('returns unauthorized', async () => {
         const serviceId = "SERV1C31D";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 401
-          })
-        ) as jest.Mock;
+        mocked(fetch).mockReturnValue(mockedResponse(401, {}));
 
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
@@ -417,21 +372,16 @@ describe('createRouter', () => {
       });
 
       it.each(testInputs)('returns NOT FOUND if service id does not exist', async () => {
-        const serviceId = "SERV1C31D";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 404,
-            json: () => Promise.resolve(
-              {
+        mocked(fetch).mockReturnValue(mockedResponse(404, {
                 "error": {
                   "message": "Not Found",
                   "code": 2100
                 }
               }
             )
-          })
-        ) as jest.Mock;
-
+        );
+        
+        const serviceId = "SERV1C31D";
         const expectedStatusCode = 404;
         const expectedResponse = { "errors": ["Failed to get service. The requested resource was not found."] };
 
@@ -471,10 +421,7 @@ describe('createRouter', () => {
           ]
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
               "change_events": [
                 {
                   "id": expectedResponse.change_events[0].id,
@@ -497,9 +444,8 @@ describe('createRouter', () => {
                   ]
                 }
               ]
-            })
           })
-        ) as jest.Mock;
+        );
 
         const response = await request(app).get(`/services/${serviceId}/change-events`);
 
@@ -510,13 +456,9 @@ describe('createRouter', () => {
       });
 
       it.each(testInputs)('returns unauthorized', async () => {
-        const serviceId = "SERV1C31D";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 401
-          })
-        ) as jest.Mock;
+        mocked(fetch).mockReturnValue(mockedResponse(401, {}));
 
+        const serviceId = "SERV1C31D";
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get change events for service. Caller did not supply credentials or did not provide the correct credentials.";
 
@@ -527,21 +469,9 @@ describe('createRouter', () => {
       });
 
       it.each(testInputs)('returns NOT FOUND if service id does not exist', async () => {
-        const serviceId = "SERV1C31D";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 404,
-            json: () => Promise.resolve(
-              {
-                "error": {
-                  "message": "Not Found",
-                  "code": 2100
-                }
-              }
-            )
-          })
-        ) as jest.Mock;
+        mocked(fetch).mockReturnValue(mockedResponse(404, { "error": { "message": "Not Found", "code": 2100 } }));
 
+        const serviceId = "SERV1C31D";
         const expectedStatusCode = 404;
         const expectedResponse = { "errors": ["Failed to get change events for service. The requested resource was not found."] };
 
@@ -679,10 +609,7 @@ describe('createRouter', () => {
           ]
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
               "incidents": [
                 {
                   id: expectedResponse.incidents[0].id,
@@ -716,8 +643,7 @@ describe('createRouter', () => {
                 }
               ]
             })
-          })
-        ) as jest.Mock;
+        );
 
         const response = await request(app).get(`/services/${serviceId}/incidents`);
 
@@ -728,13 +654,9 @@ describe('createRouter', () => {
       });
 
       it.each(testInputs)('returns unauthorized', async () => {
+        mocked(fetch).mockReturnValue(mockedResponse(401, {}));
+        
         const serviceId = "SERV1C31D";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 401
-          })
-        ) as jest.Mock;
-
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.";
 
