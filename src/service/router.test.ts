@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 
 import { createRouter } from './router';
-import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident } from '@pagerduty/backstage-plugin-common';
+import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse } from '@pagerduty/backstage-plugin-common';
 
 jest.mock("../auth/auth", () => ({
   getAuthToken: jest.fn().mockReturnValue(Promise.resolve('test-token')),
@@ -433,7 +433,7 @@ describe('createRouter', () => {
         ) as jest.Mock;
 
         const expectedStatusCode = 404;
-        const expectedResponse = {"errors": ["Failed to get service. The requested resource was not found."]};
+        const expectedResponse = { "errors": ["Failed to get service. The requested resource was not found."] };
 
         const response = await request(app).get(`/services/${serviceId}`);
 
@@ -561,6 +561,94 @@ describe('createRouter', () => {
             {
               id: "1NC1D3NT_1D",
               status: "triggered",
+              urgency: "high",
+              title: "Test Incident 1",
+              created_at: "2020-01-01T00:00:00Z",
+              html_url: "https://example.pagerduty.com/incidents/1NC1D3NT_1D",
+              service: {
+                id: "S3RV1CE1D",
+                name: "Test Service",
+                html_url: "https://example.pagerduty.com/services/S3RV1CE1D",
+                escalation_policy: {
+                  id: "P0L1CY1D",
+                  name: "Test Escalation Policy",
+                  html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+                  type: "escalation_policy_reference",
+                },
+              },
+              assignments: [
+                {
+                  assignee: {
+                    id: "4SS1GN33_1D",
+                    summary: "Test User",
+                    name: "Test User",
+                    email: "test.user@email.com",
+                    avatar_url: "https://example.pagerduty.com/avatars/123",
+                    html_url: "https://example.pagerduty.com/users/123",
+                  }
+                }
+              ]
+            }
+          ]
+        };
+
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            json: () => Promise.resolve({
+              "incidents": [
+                {
+                  id: expectedResponse.incidents[0].id,
+                  status: expectedResponse.incidents[0].status,
+                  title: expectedResponse.incidents[0].title,
+                  urgency: expectedResponse.incidents[0].urgency,
+                  created_at: expectedResponse.incidents[0].created_at,
+                  html_url: expectedResponse.incidents[0].html_url,
+                  service: {
+                    id: expectedResponse.incidents[0].service.id,
+                    name: expectedResponse.incidents[0].service.name,
+                    html_url: expectedResponse.incidents[0].service.html_url,
+                    escalation_policy: {
+                      id: expectedResponse.incidents[0].service.escalation_policy.id,
+                      name: expectedResponse.incidents[0].service.escalation_policy.name,
+                      html_url: expectedResponse.incidents[0].service.escalation_policy.html_url,
+                      type: expectedResponse.incidents[0].service.escalation_policy.type,
+                    },
+                  },
+                  assignments: [
+                    {
+                      assignee: {
+                        id: expectedResponse.incidents[0].assignments[0].assignee.id,
+                        summary: expectedResponse.incidents[0].assignments[0].assignee.summary,
+                        name: expectedResponse.incidents[0].assignments[0].assignee.name,
+                        email: expectedResponse.incidents[0].assignments[0].assignee.email,
+                        avatar_url: expectedResponse.incidents[0].assignments[0].assignee.avatar_url,
+                        html_url: expectedResponse.incidents[0].assignments[0].assignee.html_url,
+                      }
+                    }
+                  ]
+                }
+              ]
+            })
+          })
+        ) as jest.Mock;
+
+        const response = await request(app).get(`/services/${serviceId}/incidents`);
+
+        const incidents: PagerDutyIncident[] = JSON.parse(response.text);
+
+        expect(response.status).toEqual(expectedStatusCode);
+        expect(incidents).toEqual(expectedResponse);
+      });
+
+      it.each(testInputs)('returns ok with optional urgency', async () => {
+        const serviceId = "SERV1C31D";
+        const expectedStatusCode = 200;
+        const expectedResponse: PagerDutyIncidentsResponse = {
+          incidents: [
+            {
+              id: "1NC1D3NT_1D",
+              status: "triggered",
               title: "Test Incident 1",
               created_at: "2020-01-01T00:00:00Z",
               html_url: "https://example.pagerduty.com/incidents/1NC1D3NT_1D",
@@ -662,6 +750,157 @@ describe('createRouter', () => {
         const expectedStatusCode = 404;
 
         const response = await request(app).get(`/services/${serviceId}/incidents`);
+
+        expect(response.status).toEqual(expectedStatusCode);
+      });
+    });
+
+    describe('standards', () => {
+      it.each(testInputs)('returns ok', async () => {
+        const serviceId = "SERV1C31D";
+        const expectedStatusCode = 200;
+        const expectedResponse: PagerDutyServiceStandardsResponse = {
+          standards: {
+            resource_id: serviceId,
+            resource_type: "technical_service",
+            score: {
+              passing: 1,
+              total: 2,
+            },
+            standards: [
+              {
+                active: true,
+                id: "ST4ND4RD_1D",
+                name: "Test Standard 1",
+                description: "Test Standard Description 1",
+                pass: true,
+                type: "technical_service_standard",
+              },
+              {
+                active: true,
+                id: "ST4ND4RD_2D",
+                name: "Test Standard 2",
+                description: "Test Standard Description 2",
+                pass: true,
+                type: "technical_service_standard",
+              },
+            ]
+          }
+        };
+
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            json: () => Promise.resolve({
+              resource_id: expectedResponse.standards.resource_id,
+              resource_type: expectedResponse.standards.resource_type,
+              score: {
+                passing: expectedResponse.standards.score.passing,
+                total: expectedResponse.standards.score.total,
+              },
+              standards: [
+                {
+                  active: expectedResponse.standards.standards[0].active,
+                  id: expectedResponse.standards.standards[0].id,
+                  name: expectedResponse.standards.standards[0].name,
+                  description: expectedResponse.standards.standards[0].description,
+                  pass: expectedResponse.standards.standards[0].pass,
+                  type: expectedResponse.standards.standards[0].type,
+                },
+                {
+                  active: expectedResponse.standards.standards[1].active,
+                  id: expectedResponse.standards.standards[1].id,
+                  name: expectedResponse.standards.standards[1].name,
+                  description: expectedResponse.standards.standards[1].description,
+                  pass: expectedResponse.standards.standards[1].pass,
+                  type: expectedResponse.standards.standards[1].type,
+                },
+              ]
+            })
+          })
+        ) as jest.Mock;
+
+        const response = await request(app).get(`/services/${serviceId}/standards`);
+
+        const result: PagerDutyServiceStandardsResponse = JSON.parse(response.text);
+
+        expect(response.status).toEqual(expectedStatusCode);
+        expect(result).toEqual(expectedResponse);
+      });
+
+      it.each(testInputs)('returns unauthorized', async () => {
+        const serviceId = "SERV1C31D";
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: 401
+          })
+        ) as jest.Mock;
+
+        const expectedStatusCode = 401;
+        const expectedErrorMessage = "Failed to get service standards for service. Caller did not supply credentials or did not provide the correct credentials.";
+
+        const response = await request(app).get(`/services/${serviceId}/standards`);
+
+        expect(response.status).toEqual(expectedStatusCode);
+        expect(response.text).toMatch(expectedErrorMessage);
+      });
+
+      it.each(testInputs)('returns BAD REQUEST when service id is not provided', async () => {
+        const serviceId = '';
+
+        const expectedStatusCode = 404;
+
+        const response = await request(app).get(`/services/${serviceId}/standards`);
+
+        expect(response.status).toEqual(expectedStatusCode);
+      });
+    });
+
+    describe('metrics', () => {
+      it.each(testInputs)('returns ok', async () => {
+        const serviceId = "SERV1C31D";
+        const serviceName = "Test Service";
+        const expectedStatusCode = 200;
+        const expectedResponse: PagerDutyServiceMetricsResponse = {
+          metrics: [{
+            service_id: serviceId,
+            service_name: serviceName,
+            total_high_urgency_incidents: 5,
+            total_incident_count: 10,
+            total_interruptions: 1,
+          }]
+        };
+
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            status: 200,
+            json: () => Promise.resolve({
+              data: [{
+                service_id: expectedResponse.metrics[0].service_id,
+                service_name: expectedResponse.metrics[0].service_name,
+                total_high_urgency_incidents: expectedResponse.metrics[0].total_high_urgency_incidents,
+                total_incident_count: expectedResponse.metrics[0].total_incident_count,
+                total_interruptions: expectedResponse.metrics[0].total_interruptions,
+              }]
+            })
+          })
+        ) as jest.Mock;
+
+        const response = await request(app).get(`/services/${serviceId}/metrics`);
+
+        
+        const result: PagerDutyServiceMetricsResponse = JSON.parse(response.text);
+        
+        expect(response.status).toEqual(expectedStatusCode);
+        expect(result).toEqual(expectedResponse);
+      });
+
+      it.each(testInputs)('returns BAD REQUEST when service id is not provided', async () => {
+        const serviceId = '';
+
+        const expectedStatusCode = 404;
+
+        const response = await request(app).get(`/services/${serviceId}/metrics`);
 
         expect(response.status).toEqual(expectedStatusCode);
       });

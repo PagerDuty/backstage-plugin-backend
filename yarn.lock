@@ -4813,7 +4813,7 @@ __metadata:
     "@backstage/config": ^1.1.1
     "@backstage/plugin-scaffolder-node": ^0.2.8
     "@material-ui/core": ^4.12.4
-    "@pagerduty/backstage-plugin-common": ^0.1.0
+    "@pagerduty/backstage-plugin-common": ^0.1.2
     "@rjsf/core": ^5.14.3
     "@types/express": ^4.17.6
     "@types/node": ^20.9.2
@@ -4822,6 +4822,7 @@ __metadata:
     cross-fetch: ^4.0.0
     express: ^4.17.1
     express-promise-router: ^4.1.0
+    luxon: ^3.4.4
     msw: ^1.0.0
     node-fetch: ^2.6.7
     supertest: ^6.2.4
@@ -4830,14 +4831,14 @@ __metadata:
     yn: ^4.0.0
     zod: ^3.22.4
   peerDependencies:
-    "@pagerduty/backstage-plugin-common": ^0.1.0
+    "@pagerduty/backstage-plugin-common": ^0.1.2
   languageName: unknown
   linkType: soft
 
-"@pagerduty/backstage-plugin-common@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@pagerduty/backstage-plugin-common@npm:0.1.0"
-  checksum: a16768493e91895f67d41d785a79b580d5b00055fb44daedbed81732a43790d8cb884923dbcc8e7c020cf5d3f772d73eb067705c68736863974be80703499041
+"@pagerduty/backstage-plugin-common@npm:^0.1.2":
+  version: 0.1.2
+  resolution: "@pagerduty/backstage-plugin-common@npm:0.1.2"
+  checksum: f2fc4627613c94d6620d0013e79cf886501c1ddc680e1686672f133308db21809f9b855e8eeb9574b93d8c1b2a70f2ad6b16c29fa682265b46269cf1929c79e9
   languageName: node
   linkType: hard
 
@@ -14318,7 +14319,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"luxon@npm:^3.0.0":
+"luxon@npm:^3.0.0, luxon@npm:^3.4.4":
   version: 3.4.4
   resolution: "luxon@npm:3.4.4"
   checksum: 36c1f99c4796ee4bfddf7dc94fa87815add43ebc44c8934c924946260a58512f0fd2743a629302885df7f35ccbd2d13f178c15df046d0e3b6eb71db178f1c60c

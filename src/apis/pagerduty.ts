@@ -1,5 +1,5 @@
 import { getAuthToken } from '../auth/auth';
-import { 
+import {
     CreateServiceResponse,
 } from '../types';
 
@@ -17,8 +17,12 @@ import {
     PagerDutyChangeEvent,
     PagerDutyIncident,
     PagerDutyIncidentsResponse,
+    PagerDutyServiceStandards,
+    PagerDutyServiceMetrics,
     HttpError
 } from '@pagerduty/backstage-plugin-common';
+
+import { DateTime } from 'luxon';
 
 let apiBaseUrl = 'https://api.pagerduty.com';
 export function setAPIBaseUrl(url: string): void {
@@ -132,7 +136,7 @@ export async function createService(name: string, description: string, escalatio
                 break;
         }
     }
-    
+
     const options: RequestInit = {
         method: 'POST',
         body: body,
@@ -293,7 +297,7 @@ export async function getAllEscalationPolicies(offset: number = 0): Promise<Page
 
         return results;
     } catch (error) {
-        if (error instanceof HttpError){
+        if (error instanceof HttpError) {
             throw error;
         }
         else {
@@ -396,7 +400,7 @@ export async function getOncallUsers(escalationPolicy: string): Promise<PagerDut
             usersItem = [...oncallsFiltered]
                 .sort((a, b) => a.user.name > b.user.name ? 1 : -1)
                 .map((oncall) => oncall.user);
-            
+
 
             // remove duplicates from usersItem
             const uniqueUsers = new Map();
@@ -503,7 +507,7 @@ export async function getServiceByIntegrationKey(integrationKey: string): Promis
     if (result.services.length === 0) {
         throw new HttpError(`Failed to get service. The requested resource was not found.`, 404);
     }
-    
+
     return result.services[0];
 }
 
@@ -591,6 +595,94 @@ export async function getIncidents(serviceId: string): Promise<PagerDutyIncident
         return result.incidents;
     } catch (error) {
         throw new HttpError(`Failed to parse incidents information: ${error}`, 500);
+    }
+}
+
+export async function getServiceStandards(serviceId: string): Promise<PagerDutyServiceStandards> {
+    let response: Response;
+
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: await getAuthToken(),
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = `${apiBaseUrl}/standards/scores/technical_services/${serviceId}`;
+
+    try {
+        response = await fetch(baseUrl, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service standards for service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 401:
+            throw new HttpError("Failed to get service standards for service. Caller did not supply credentials or did not provide the correct credentials.", 401);
+        case 403:
+            throw new HttpError("Failed to get service standards for service. Caller is not authorized to view the requested resource.", 403);
+        case 429:
+            throw new HttpError("Failed to get service standards for service. Too many requests have been made, the rate limit has been reached.", 429);
+        default: // 200
+            break;
+    }
+
+    try {
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        throw new HttpError(`Failed to parse service standards information: ${error}`, 500);
+    }
+}
+
+export async function getServiceMetrics(serviceId: string): Promise<PagerDutyServiceMetrics[]> {
+    let response: Response;
+    
+    const endDate = DateTime.now();
+    const startDate = endDate.minus({ days: 30 });
+    const body = JSON.stringify({
+        filters: {
+            created_at_start: startDate.toISO(),
+            created_at_end: endDate.toISO(),
+            service_ids: [
+                serviceId
+            ]
+        }
+    });
+
+    const options: RequestInit = {
+        method: 'POST',
+        headers: {
+            Authorization: await getAuthToken(),
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+        body: body
+    };
+    const baseUrl = `${apiBaseUrl}/analytics/metrics/incidents/services`;
+
+    try {
+        response = await fetch(baseUrl, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service metrics for service: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to get service metrics for service. Caller provided invalid arguments. Please review the response for error details. Retrying with the same arguments will not work.", 400);
+        case 429:
+            throw new HttpError("Failed to get service metrics for service. Too many requests have been made, the rate limit has been reached.", 429);
+        default: // 200
+            break;
+    }
+
+    try {
+        const result = await response.json();
+
+        return result.data;
+    } catch (error) {
+        throw new HttpError(`Failed to parse service metrics information: ${error}`, 500);
     }
 }
 
