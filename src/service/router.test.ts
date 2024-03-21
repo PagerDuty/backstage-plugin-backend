@@ -70,17 +70,17 @@ describe('createRouter', () => {
   describe('GET /escalation_policies', () => {
     it.each(testInputs)('returns ok', async () => {
       mocked(fetch).mockReturnValue(mockedResponse(200, {
-            escalation_policies: [
-              {
-                id: "12345",
-                name: "Test Escalation Policy",
-                type: "escalation_policy",
-                summary: "Test Escalation Policy",
-                self: "https://api.pagerduty.com/escalation_policies/12345",
-                html_url: "https://example.pagerduty.com/escalation_policies/12345",
-              }
-            ]
-          })
+        escalation_policies: [
+          {
+            id: "12345",
+            name: "Test Escalation Policy",
+            type: "escalation_policy",
+            summary: "Test Escalation Policy",
+            self: "https://api.pagerduty.com/escalation_policies/12345",
+            html_url: "https://example.pagerduty.com/escalation_policies/12345",
+          }
+        ]
+      })
       );
 
       const expectedStatusCode = 200;
@@ -155,31 +155,31 @@ describe('createRouter', () => {
       };
 
       mocked(fetch).mockReturnValue(mockedResponse(200, {
-            "oncalls": [
-              {
-                "user": {
-                  "id": expectedResponse.users[0].id,
-                  "summary": expectedResponse.users[0].summary,
-                  "name": expectedResponse.users[0].name,
-                  "email": expectedResponse.users[0].email,
-                  "avatar_url": expectedResponse.users[0].avatar_url,
-                  "html_url": expectedResponse.users[0].html_url,
-                },
-                "escalation_level": 1
-              },
-              {
-                "user": {
-                  "id": expectedResponse.users[1].id,
-                  "summary": expectedResponse.users[1].summary,
-                  "name": expectedResponse.users[1].name,
-                  "email": expectedResponse.users[1].email,
-                  "avatar_url": expectedResponse.users[1].avatar_url,
-                  "html_url": expectedResponse.users[1].html_url,
-                },
-                "escalation_level": 1
-              }
-            ]
-          })
+        "oncalls": [
+          {
+            "user": {
+              "id": expectedResponse.users[0].id,
+              "summary": expectedResponse.users[0].summary,
+              "name": expectedResponse.users[0].name,
+              "email": expectedResponse.users[0].email,
+              "avatar_url": expectedResponse.users[0].avatar_url,
+              "html_url": expectedResponse.users[0].html_url,
+            },
+            "escalation_level": 1
+          },
+          {
+            "user": {
+              "id": expectedResponse.users[1].id,
+              "summary": expectedResponse.users[1].summary,
+              "name": expectedResponse.users[1].name,
+              "email": expectedResponse.users[1].email,
+              "avatar_url": expectedResponse.users[1].avatar_url,
+              "html_url": expectedResponse.users[1].html_url,
+            },
+            "escalation_level": 1
+          }
+        ]
+      })
       );
 
       const response = await request(app).get(`/oncall-users?escalation_policy_ids[]=${escalationPolicyId}`);
@@ -193,7 +193,7 @@ describe('createRouter', () => {
 
     it.each(testInputs)('returns unauthorized', async () => {
       mocked(fetch).mockReturnValue(mockedResponse(401, {}));
-      
+
       const escalationPolicyId = "12345";
       const expectedStatusCode = 401;
       const expectedErrorMessage = "Failed to list oncalls. Caller did not supply credentials or did not provide the correct credentials.";
@@ -206,7 +206,7 @@ describe('createRouter', () => {
 
     it.each(testInputs)('returns empty list when no escalation policies exist', async () => {
       mocked(fetch).mockReturnValue(mockedResponse(200, { "oncalls": [] }));
-      
+
       const escalationPolicyId = "12345";
       const expectedStatusCode = 200;
       const expectedResponse: PagerDutyOnCallUsersResponse = {
@@ -245,26 +245,26 @@ describe('createRouter', () => {
         };
 
         mocked(fetch).mockReturnValue(mockedResponse(200, {
-              "services": [
-                {
-                  "id": expectedResponse.service.id,
-                  "name": expectedResponse.service.name,
-                  "description": expectedResponse.service.description,
-                  "status": expectedResponse.service.status,
-                  "escalation_policy": {
-                    "id": expectedResponse.service.escalation_policy.id,
-                    "name": expectedResponse.service.escalation_policy.name,
-                    "type": expectedResponse.service.escalation_policy.type,
-                    "html_url": expectedResponse.service.escalation_policy.html_url
-                  },
-                  "html_url": expectedResponse.service.html_url
-                }
-              ],
-              "limit": 25,
-              "offset": 0,
-              "total": null,
-              "more": false
-            })
+          "services": [
+            {
+              "id": expectedResponse.service.id,
+              "name": expectedResponse.service.name,
+              "description": expectedResponse.service.description,
+              "status": expectedResponse.service.status,
+              "escalation_policy": {
+                "id": expectedResponse.service.escalation_policy.id,
+                "name": expectedResponse.service.escalation_policy.name,
+                "type": expectedResponse.service.escalation_policy.type,
+                "html_url": expectedResponse.service.escalation_policy.html_url
+              },
+              "html_url": expectedResponse.service.html_url
+            }
+          ],
+          "limit": 25,
+          "offset": 0,
+          "total": null,
+          "more": false
+        })
         );
 
         const response = await request(app).get(`/services?integration_key=${integrationKey}`);
@@ -278,7 +278,7 @@ describe('createRouter', () => {
 
       it.each(testInputs)('returns unauthorized', async () => {
         mocked(fetch).mockReturnValue(mockedResponse(401, {}));
-        
+
         const integrationKey = "INT3GR4T10NK3Y";
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get service. Caller did not supply credentials or did not provide the correct credentials.";
@@ -291,13 +291,13 @@ describe('createRouter', () => {
 
       it.each(testInputs)('returns NOT FOUND when integration key does not belong to a service', async () => {
         mocked(fetch).mockReturnValue(mockedResponse(200, {
-                "services": [],
-                "limit": 25,
-                "offset": 0,
-                "total": null,
-                "more": false
-              }
-            )
+          "services": [],
+          "limit": 25,
+          "offset": 0,
+          "total": null,
+          "more": false
+        }
+        )
         );
 
         const integrationKey = "INT3GR4T10NK3Y";
@@ -333,21 +333,21 @@ describe('createRouter', () => {
         };
 
         mocked(fetch).mockReturnValue(mockedResponse(200, {
-              "service":
-              {
-                "id": expectedResponse.service.id,
-                "name": expectedResponse.service.name,
-                "description": expectedResponse.service.description,
-                "status": expectedResponse.service.status,
-                "escalation_policy": {
-                  "id": expectedResponse.service.escalation_policy.id,
-                  "name": expectedResponse.service.escalation_policy.name,
-                  "type": expectedResponse.service.escalation_policy.type,
-                  "html_url": expectedResponse.service.escalation_policy.html_url
-                },
-                "html_url": expectedResponse.service.html_url
-              }
-            })
+          "service":
+          {
+            "id": expectedResponse.service.id,
+            "name": expectedResponse.service.name,
+            "description": expectedResponse.service.description,
+            "status": expectedResponse.service.status,
+            "escalation_policy": {
+              "id": expectedResponse.service.escalation_policy.id,
+              "name": expectedResponse.service.escalation_policy.name,
+              "type": expectedResponse.service.escalation_policy.type,
+              "html_url": expectedResponse.service.escalation_policy.html_url
+            },
+            "html_url": expectedResponse.service.html_url
+          }
+        })
         );
 
         const response = await request(app).get(`/services/${serviceId}`);
@@ -373,14 +373,14 @@ describe('createRouter', () => {
 
       it.each(testInputs)('returns NOT FOUND if service id does not exist', async () => {
         mocked(fetch).mockReturnValue(mockedResponse(404, {
-                "error": {
-                  "message": "Not Found",
-                  "code": 2100
-                }
-              }
-            )
+          "error": {
+            "message": "Not Found",
+            "code": 2100
+          }
+        }
+        )
         );
-        
+
         const serviceId = "SERV1C31D";
         const expectedStatusCode = 404;
         const expectedResponse = { "errors": ["Failed to get service. The requested resource was not found."] };
@@ -422,29 +422,29 @@ describe('createRouter', () => {
         };
 
         mocked(fetch).mockReturnValue(mockedResponse(200, {
-              "change_events": [
+          "change_events": [
+            {
+              "id": expectedResponse.change_events[0].id,
+              "source": expectedResponse.change_events[0].source,
+              "summary": expectedResponse.change_events[0].summary,
+              "timestamp": expectedResponse.change_events[0].timestamp,
+              "links": [
                 {
-                  "id": expectedResponse.change_events[0].id,
-                  "source": expectedResponse.change_events[0].source,
-                  "summary": expectedResponse.change_events[0].summary,
-                  "timestamp": expectedResponse.change_events[0].timestamp,
-                  "links": [
-                    {
-                      "href": expectedResponse.change_events[0].links[0].href,
-                      "text": expectedResponse.change_events[0].links[0].text,
-                    }
-                  ],
-                  "integration": [
-                    {
-                      "id": expectedResponse.change_events[0].integration[0].id,
-                      "summary": expectedResponse.change_events[0].integration[0].summary,
-                      "type": expectedResponse.change_events[0].integration[0].type,
-                      "html_url": expectedResponse.change_events[0].integration[0].html_url,
-                    }
-                  ]
+                  "href": expectedResponse.change_events[0].links[0].href,
+                  "text": expectedResponse.change_events[0].links[0].text,
+                }
+              ],
+              "integration": [
+                {
+                  "id": expectedResponse.change_events[0].integration[0].id,
+                  "summary": expectedResponse.change_events[0].integration[0].summary,
+                  "type": expectedResponse.change_events[0].integration[0].type,
+                  "html_url": expectedResponse.change_events[0].integration[0].html_url,
                 }
               ]
-          })
+            }
+          ]
+        })
         );
 
         const response = await request(app).get(`/services/${serviceId}/change-events`);
@@ -522,46 +522,41 @@ describe('createRouter', () => {
           ]
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
-              "incidents": [
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
+          "incidents": [
+            {
+              id: expectedResponse.incidents[0].id,
+              status: expectedResponse.incidents[0].status,
+              title: expectedResponse.incidents[0].title,
+              urgency: expectedResponse.incidents[0].urgency,
+              created_at: expectedResponse.incidents[0].created_at,
+              html_url: expectedResponse.incidents[0].html_url,
+              service: {
+                id: expectedResponse.incidents[0].service.id,
+                name: expectedResponse.incidents[0].service.name,
+                html_url: expectedResponse.incidents[0].service.html_url,
+                escalation_policy: {
+                  id: expectedResponse.incidents[0].service.escalation_policy.id,
+                  name: expectedResponse.incidents[0].service.escalation_policy.name,
+                  html_url: expectedResponse.incidents[0].service.escalation_policy.html_url,
+                  type: expectedResponse.incidents[0].service.escalation_policy.type,
+                },
+              },
+              assignments: [
                 {
-                  id: expectedResponse.incidents[0].id,
-                  status: expectedResponse.incidents[0].status,
-                  title: expectedResponse.incidents[0].title,
-                  urgency: expectedResponse.incidents[0].urgency,
-                  created_at: expectedResponse.incidents[0].created_at,
-                  html_url: expectedResponse.incidents[0].html_url,
-                  service: {
-                    id: expectedResponse.incidents[0].service.id,
-                    name: expectedResponse.incidents[0].service.name,
-                    html_url: expectedResponse.incidents[0].service.html_url,
-                    escalation_policy: {
-                      id: expectedResponse.incidents[0].service.escalation_policy.id,
-                      name: expectedResponse.incidents[0].service.escalation_policy.name,
-                      html_url: expectedResponse.incidents[0].service.escalation_policy.html_url,
-                      type: expectedResponse.incidents[0].service.escalation_policy.type,
-                    },
-                  },
-                  assignments: [
-                    {
-                      assignee: {
-                        id: expectedResponse.incidents[0].assignments[0].assignee.id,
-                        summary: expectedResponse.incidents[0].assignments[0].assignee.summary,
-                        name: expectedResponse.incidents[0].assignments[0].assignee.name,
-                        email: expectedResponse.incidents[0].assignments[0].assignee.email,
-                        avatar_url: expectedResponse.incidents[0].assignments[0].assignee.avatar_url,
-                        html_url: expectedResponse.incidents[0].assignments[0].assignee.html_url,
-                      }
-                    }
-                  ]
+                  assignee: {
+                    id: expectedResponse.incidents[0].assignments[0].assignee.id,
+                    summary: expectedResponse.incidents[0].assignments[0].assignee.summary,
+                    name: expectedResponse.incidents[0].assignments[0].assignee.name,
+                    email: expectedResponse.incidents[0].assignments[0].assignee.email,
+                    avatar_url: expectedResponse.incidents[0].assignments[0].assignee.avatar_url,
+                    html_url: expectedResponse.incidents[0].assignments[0].assignee.html_url,
+                  }
                 }
               ]
-            })
-          })
-        ) as jest.Mock;
+            }
+          ]
+        }));
 
         const response = await request(app).get(`/services/${serviceId}/incidents`);
 
@@ -610,39 +605,39 @@ describe('createRouter', () => {
         };
 
         mocked(fetch).mockReturnValue(mockedResponse(200, {
-              "incidents": [
+          "incidents": [
+            {
+              id: expectedResponse.incidents[0].id,
+              status: expectedResponse.incidents[0].status,
+              title: expectedResponse.incidents[0].title,
+              created_at: expectedResponse.incidents[0].created_at,
+              html_url: expectedResponse.incidents[0].html_url,
+              service: {
+                id: expectedResponse.incidents[0].service.id,
+                name: expectedResponse.incidents[0].service.name,
+                html_url: expectedResponse.incidents[0].service.html_url,
+                escalation_policy: {
+                  id: expectedResponse.incidents[0].service.escalation_policy.id,
+                  name: expectedResponse.incidents[0].service.escalation_policy.name,
+                  html_url: expectedResponse.incidents[0].service.escalation_policy.html_url,
+                  type: expectedResponse.incidents[0].service.escalation_policy.type,
+                },
+              },
+              assignments: [
                 {
-                  id: expectedResponse.incidents[0].id,
-                  status: expectedResponse.incidents[0].status,
-                  title: expectedResponse.incidents[0].title,
-                  created_at: expectedResponse.incidents[0].created_at,
-                  html_url: expectedResponse.incidents[0].html_url,
-                  service: {
-                    id: expectedResponse.incidents[0].service.id,
-                    name: expectedResponse.incidents[0].service.name,
-                    html_url: expectedResponse.incidents[0].service.html_url,
-                    escalation_policy: {
-                      id: expectedResponse.incidents[0].service.escalation_policy.id,
-                      name: expectedResponse.incidents[0].service.escalation_policy.name,
-                      html_url: expectedResponse.incidents[0].service.escalation_policy.html_url,
-                      type: expectedResponse.incidents[0].service.escalation_policy.type,
-                    },
-                  },
-                  assignments: [
-                    {
-                      assignee: {
-                        id: expectedResponse.incidents[0].assignments[0].assignee.id,
-                        summary: expectedResponse.incidents[0].assignments[0].assignee.summary,
-                        name: expectedResponse.incidents[0].assignments[0].assignee.name,
-                        email: expectedResponse.incidents[0].assignments[0].assignee.email,
-                        avatar_url: expectedResponse.incidents[0].assignments[0].assignee.avatar_url,
-                        html_url: expectedResponse.incidents[0].assignments[0].assignee.html_url,
-                      }
-                    }
-                  ]
+                  assignee: {
+                    id: expectedResponse.incidents[0].assignments[0].assignee.id,
+                    summary: expectedResponse.incidents[0].assignments[0].assignee.summary,
+                    name: expectedResponse.incidents[0].assignments[0].assignee.name,
+                    email: expectedResponse.incidents[0].assignments[0].assignee.email,
+                    avatar_url: expectedResponse.incidents[0].assignments[0].assignee.avatar_url,
+                    html_url: expectedResponse.incidents[0].assignments[0].assignee.html_url,
+                  }
                 }
               ]
-            })
+            }
+          ]
+        })
         );
 
         const response = await request(app).get(`/services/${serviceId}/incidents`);
@@ -655,7 +650,7 @@ describe('createRouter', () => {
 
       it.each(testInputs)('returns unauthorized', async () => {
         mocked(fetch).mockReturnValue(mockedResponse(401, {}));
-        
+
         const serviceId = "SERV1C31D";
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get incidents for service. Caller did not supply credentials or did not provide the correct credentials.";
@@ -710,37 +705,32 @@ describe('createRouter', () => {
           }
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
-              resource_id: expectedResponse.standards.resource_id,
-              resource_type: expectedResponse.standards.resource_type,
-              score: {
-                passing: expectedResponse.standards.score.passing,
-                total: expectedResponse.standards.score.total,
-              },
-              standards: [
-                {
-                  active: expectedResponse.standards.standards[0].active,
-                  id: expectedResponse.standards.standards[0].id,
-                  name: expectedResponse.standards.standards[0].name,
-                  description: expectedResponse.standards.standards[0].description,
-                  pass: expectedResponse.standards.standards[0].pass,
-                  type: expectedResponse.standards.standards[0].type,
-                },
-                {
-                  active: expectedResponse.standards.standards[1].active,
-                  id: expectedResponse.standards.standards[1].id,
-                  name: expectedResponse.standards.standards[1].name,
-                  description: expectedResponse.standards.standards[1].description,
-                  pass: expectedResponse.standards.standards[1].pass,
-                  type: expectedResponse.standards.standards[1].type,
-                },
-              ]
-            })
-          })
-        ) as jest.Mock;
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
+          resource_id: expectedResponse.standards.resource_id,
+          resource_type: expectedResponse.standards.resource_type,
+          score: {
+            passing: expectedResponse.standards.score.passing,
+            total: expectedResponse.standards.score.total,
+          },
+          standards: [
+            {
+              active: expectedResponse.standards.standards[0].active,
+              id: expectedResponse.standards.standards[0].id,
+              name: expectedResponse.standards.standards[0].name,
+              description: expectedResponse.standards.standards[0].description,
+              pass: expectedResponse.standards.standards[0].pass,
+              type: expectedResponse.standards.standards[0].type,
+            },
+            {
+              active: expectedResponse.standards.standards[1].active,
+              id: expectedResponse.standards.standards[1].id,
+              name: expectedResponse.standards.standards[1].name,
+              description: expectedResponse.standards.standards[1].description,
+              pass: expectedResponse.standards.standards[1].pass,
+              type: expectedResponse.standards.standards[1].type,
+            },
+          ]
+        }));
 
         const response = await request(app).get(`/services/${serviceId}/standards`);
 
@@ -752,11 +742,7 @@ describe('createRouter', () => {
 
       it.each(testInputs)('returns unauthorized', async () => {
         const serviceId = "SERV1C31D";
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 401
-          })
-        ) as jest.Mock;
+        mocked(fetch).mockReturnValue(mockedResponse(401, {}));
 
         const expectedStatusCode = 401;
         const expectedErrorMessage = "Failed to get service standards for service. Caller did not supply credentials or did not provide the correct credentials.";
@@ -793,26 +779,20 @@ describe('createRouter', () => {
           }]
         };
 
-        global.fetch = jest.fn(() =>
-          Promise.resolve({
-            status: 200,
-            json: () => Promise.resolve({
-              data: [{
-                service_id: expectedResponse.metrics[0].service_id,
-                service_name: expectedResponse.metrics[0].service_name,
-                total_high_urgency_incidents: expectedResponse.metrics[0].total_high_urgency_incidents,
-                total_incident_count: expectedResponse.metrics[0].total_incident_count,
-                total_interruptions: expectedResponse.metrics[0].total_interruptions,
-              }]
-            })
-          })
-        ) as jest.Mock;
+        mocked(fetch).mockReturnValue(mockedResponse(expectedStatusCode, {
+          data: [{
+            service_id: expectedResponse.metrics[0].service_id,
+            service_name: expectedResponse.metrics[0].service_name,
+            total_high_urgency_incidents: expectedResponse.metrics[0].total_high_urgency_incidents,
+            total_incident_count: expectedResponse.metrics[0].total_incident_count,
+            total_interruptions: expectedResponse.metrics[0].total_interruptions,
+          }]
+        }));
 
         const response = await request(app).get(`/services/${serviceId}/metrics`);
 
-        
         const result: PagerDutyServiceMetricsResponse = JSON.parse(response.text);
-        
+
         expect(response.status).toEqual(expectedStatusCode);
         expect(result).toEqual(expectedResponse);
       });

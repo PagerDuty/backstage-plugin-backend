@@ -1408,10 +1408,8 @@ describe("PagerDuty API", () => {
 
         describe("getStandards", () => {
             it.each(testInputs)("should NOT get service standards when correct credentials are not provided", async () => {
-                global.fetch = jest.fn().mockReturnValueOnce(
-                    Promise.resolve({
-                        status: 401
-                    })
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
                 );
 
                 const serviceId = "SERV1C31D";
@@ -1427,10 +1425,8 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service standards if credentials defined do not have the necessary permissions", async () => {
-                global.fetch = jest.fn().mockReturnValueOnce(
-                    Promise.resolve({
-                        status: 403
-                    })
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(403, {})
                 );
 
                 const serviceId = "SERV1C31D";
@@ -1446,11 +1442,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service standards if PagerDuty REST API limits have been reached", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 429
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(429, {})
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 429;
@@ -1467,11 +1461,9 @@ describe("PagerDuty API", () => {
 
         describe("getMetrics", () => {
             it.each(testInputs)("should NOT get service metrics if payload is malformed", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 400
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 400;
@@ -1486,11 +1478,9 @@ describe("PagerDuty API", () => {
             });
 
             it.each(testInputs)("should NOT get service metrics if PagerDuty REST API limits have been reached", async () => {
-                global.fetch = jest.fn(() =>
-                    Promise.resolve({
-                        status: 429
-                    })
-                ) as jest.Mock;
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(429, {})
+                );
 
                 const serviceId = "SERV1C31D";
                 const expectedStatusCode = 429;

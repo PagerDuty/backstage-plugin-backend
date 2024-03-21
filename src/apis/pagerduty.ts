@@ -670,7 +670,7 @@ export async function getServiceMetrics(serviceId: string): Promise<PagerDutySer
     } catch (error) {
         throw new Error(`Failed to retrieve service metrics for service: ${error}`);
     }
-
+    
     switch (response.status) {
         case 400:
             throw new HttpError("Failed to get service metrics for service. Caller provided invalid arguments. Please review the response for error details. Retrying with the same arguments will not work.", 400);
