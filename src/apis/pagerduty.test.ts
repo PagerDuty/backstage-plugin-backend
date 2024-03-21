@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-conditional-expect */
 import { HttpError, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
-import { createService, createServiceIntegration, getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey } from "./pagerduty";
+import { createService, createServiceIntegration, getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceMetrics, getServiceStandards } from "./pagerduty";
 
 import { mocked } from "jest-mock";
 import fetch, { Response } from "node-fetch";
@@ -1183,6 +1183,7 @@ describe("PagerDuty API", () => {
                         id: "1NC1D3NT_1D",
                         status: "triggered",
                         title: "Test Incident 1",
+                        urgency: "high",
                         service: {
                             id: "S3RV1CE1D",
                             name: "Test Service",
@@ -1212,6 +1213,7 @@ describe("PagerDuty API", () => {
                     {
                         id: "1NC1D3NT_2D",
                         status: "triggered",
+                        urgency: "high",
                         title: "Test Incident 2",
                         service: {
                             id: "S3RV1CE1D",
@@ -1246,6 +1248,7 @@ describe("PagerDuty API", () => {
                         {
                             id: expectedResponse[0].id,
                             status: expectedResponse[0].status,
+                            urgency: expectedResponse[0].urgency,                        
                             title: expectedResponse[0].title,
                             created_at: expectedResponse[0].created_at,
                             html_url: expectedResponse[0].html_url,
@@ -1276,6 +1279,7 @@ describe("PagerDuty API", () => {
                         {
                             id: expectedResponse[1].id,
                             status: expectedResponse[1].status,
+                            urgency: expectedResponse[1].urgency,
                             title: expectedResponse[1].title,
                             created_at: expectedResponse[1].created_at,
                             html_url: expectedResponse[1].html_url,
@@ -1395,6 +1399,95 @@ describe("PagerDuty API", () => {
 
                 try {
                     await getIncidents(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+
+        describe("getStandards", () => {
+            it.each(testInputs)("should NOT get service standards when correct credentials are not provided", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
+                );
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get service standards for service. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getServiceStandards(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it.each(testInputs)("should NOT get service standards if credentials defined do not have the necessary permissions", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(403, {})
+                );
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 403;
+                const expectedErrorMessage = "Failed to get service standards for service. Caller is not authorized to view the requested resource.";
+
+                try {
+                    await getServiceStandards(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it.each(testInputs)("should NOT get service standards if PagerDuty REST API limits have been reached", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(429, {})
+                );
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 429;
+                const expectedErrorMessage = "Failed to get service standards for service. Too many requests have been made, the rate limit has been reached.";
+
+                try {
+                    await getServiceStandards(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+
+        describe("getMetrics", () => {
+            it.each(testInputs)("should NOT get service metrics if payload is malformed", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get service metrics for service. Caller provided invalid arguments. Please review the response for error details. Retrying with the same arguments will not work.";
+
+                try {
+                    await getServiceMetrics(serviceId);
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it.each(testInputs)("should NOT get service metrics if PagerDuty REST API limits have been reached", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(429, {})
+                );
+
+                const serviceId = "SERV1C31D";
+                const expectedStatusCode = 429;
+                const expectedErrorMessage = "Failed to get service metrics for service. Too many requests have been made, the rate limit has been reached.";
+
+                try {
+                    await getServiceMetrics(serviceId);
                 } catch (error) {
                     expect(((error as HttpError).status)).toEqual(expectedStatusCode);
                     expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
