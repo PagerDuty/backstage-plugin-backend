@@ -3,8 +3,8 @@ import { Config } from '@backstage/config';
 import express from 'express';
 import Router from 'express-promise-router';
 import { Logger } from 'winston';
-import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, setAPIBaseUrl } from '../apis/pagerduty';
-import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse } from '@pagerduty/backstage-plugin-common';
+import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, setAPIBaseUrl, getServiceStandards, getServiceMetrics } from '../apis/pagerduty';
+import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse } from '@pagerduty/backstage-plugin-common';
 import { loadAuthConfig } from '../auth/auth';
 
 export interface RouterOptions {
@@ -169,6 +169,56 @@ export async function createRouter(
             }
 
             response.json(incidentsResponse);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
+    // GET /services/:serviceId/standards
+    router.get('/services/:serviceId/standards', async (request, response) => {
+        try {
+
+            // Get the serviceId from the request parameters
+            const serviceId: string = request.params.serviceId || '';
+
+            const serviceStandards = await getServiceStandards(serviceId);
+            const serviceStandardsResponse: PagerDutyServiceStandardsResponse = {
+                standards: serviceStandards
+            }
+
+            response.json(serviceStandardsResponse);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
+    // GET /services/:serviceId/metrics
+    router.get('/services/:serviceId/metrics', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const serviceId: string = request.params.serviceId || '';
+
+            const metrics = await getServiceMetrics(serviceId);
+
+
+            const metricsResponse: PagerDutyServiceMetricsResponse = {
+                    metrics: metrics
+            };
+
+            response.json(metricsResponse);
+
         } catch (error) {
             if (error instanceof HttpError) {
                 response.status(error.status).json({
