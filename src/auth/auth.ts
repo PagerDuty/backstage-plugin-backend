@@ -78,6 +78,7 @@ async function getOAuthToken(clientId: string, clientSecret: string, subDomain: 
     // define the scopes required for the OAuth token
     const scopes = `
         abilities.read 
+        analytics.read
         change_events.read 
         escalation_policies.read 
         incidents.read 
@@ -85,6 +86,7 @@ async function getOAuthToken(clientId: string, clientSecret: string, subDomain: 
         schedules.read 
         services.read 
         services.write 
+        standards.read
         teams.read 
         users.read 
         vendors.read
