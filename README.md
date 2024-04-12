@@ -39,3 +39,11 @@ If you need help with this plugin, please open an issue in [GitHub](https://gith
 
 If you are interested in contributing to this project, please refer to our [Contributing Guidelines](https://github.com/PagerDuty/backstage-plugin-backend/blob/main/CONTRIBUTING.md).
 
+<a href="https://next.ossinsight.io/widgets/official/compose-contributors?limit=30&repo_id=721084927" target="_blank" style="display: block" align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://next.ossinsight.io/widgets/official/compose-contributors/thumbnail.png?limit=30&repo_id=721084927&image_size=auto&color_scheme=dark" width="655" height="auto">
+    <img alt="Contributors of PagerDuty/backstage-plugin-backend" src="https://next.ossinsight.io/widgets/official/compose-contributors/thumbnail.png?limit=30&repo_id=721084927&image_size=auto&color_scheme=light" width="655" height="auto">
+  </picture>
+</a>
+
+<!-- Made with [OSS Insight](https://ossinsight.io/) -->
