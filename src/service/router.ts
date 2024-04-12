@@ -1,15 +1,14 @@
 import { errorHandler } from '@backstage/backend-common';
-import { Config } from '@backstage/config';
 import express from 'express';
 import Router from 'express-promise-router';
-import { Logger } from 'winston';
 import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, setAPIBaseUrl, getServiceStandards, getServiceMetrics } from '../apis/pagerduty';
 import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse } from '@pagerduty/backstage-plugin-common';
 import { loadAuthConfig } from '../auth/auth';
+import { LoggerService, RootConfigService } from '@backstage/backend-plugin-api';
 
 export interface RouterOptions {
-    logger: Logger;
-    config: Config;
+    logger: LoggerService;
+    config: RootConfigService;
 }
 
 export async function createRouter(
@@ -18,7 +17,7 @@ export async function createRouter(
     const { logger, config } = options; 
 
     // Get authentication Config
-    await loadAuthConfig(logger, config);
+    await loadAuthConfig(config, logger);
 
     // Get the PagerDuty API Base URL from config
     const baseUrl = config.getOptionalString('pagerDuty.apiBaseUrl') !== undefined ? config.getString('pagerDuty.apiBaseUrl') : 'https://api.pagerduty.com';
