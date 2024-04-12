@@ -1,10 +1,9 @@
-import { Logger } from "winston";
-import { Config } from "@backstage/config";
+import { LoggerService, RootConfigService } from "@backstage/backend-plugin-api";
 import { HttpError } from "@pagerduty/backstage-plugin-common";
 
 type Auth = {
-    logger: Logger;
-    config: Config;
+    config: RootConfigService;
+    logger: LoggerService;
     authToken: string;
     authTokenExpiryDate: number;
 }
@@ -23,16 +22,17 @@ export async function getAuthToken(): Promise<string> {
         return authPersistence.authToken;
     }
 
-    await loadAuthConfig(authPersistence.logger, authPersistence.config);
+    await loadAuthConfig(authPersistence.config, authPersistence.logger);
     return authPersistence.authToken;
 }
 
-export async function loadAuthConfig(logger: Logger, config: Config) {
+export async function loadAuthConfig(config : RootConfigService, logger: LoggerService) {
     try {
+
         // initiliaze the authPersistence in-memory object
         authPersistence = {
-            logger: logger,
-            config: config,
+            config,
+            logger,
             authToken: '',
             authTokenExpiryDate: Date.now()
         };
