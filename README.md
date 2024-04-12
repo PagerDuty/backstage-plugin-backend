@@ -11,7 +11,6 @@ The PagerDuty backend plugin augments the capabilities of the [PagerDuty fronten
 
 ## Features
 
-- **Scaffolder Action for creating services** This feature enables teams to create project templates that automatically generate a corresponding service in PagerDuty. These services come with a built-in integration to Backstage, which conveniently configures the frontend plugin for your service.
 - **REST APIs** The backend is responsible for all requests to PagerDuty REST APIs. Centralizing these in the backend plugin allows us to only expose the information the frontend needs and therefore improve security and performance.
 
 ## Getting Started
@@ -30,7 +29,7 @@ yarn add --cwd packages/backend @pagerduty/backstage-plugin-backend @pagerduty/b
 
 ### Configuration
 
-To use the custom actions as part of your custom project templates follow the instructions on the `Create PagerDuty service with Software Templates` section of the project's documentation [here](https://pagerduty.github.io/backstage-plugin-docs/advanced/create-service-software-template/).
+To use the backend plugin follow the instructions on the `Add the backend plugin to your application` section of the project's documentation [here](https://pagerduty.github.io/backstage-plugin-docs/getting-started/backstage/#add-the-backend-plugin-to-your-application).
 
 ## Support
 
