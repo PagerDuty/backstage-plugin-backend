@@ -1,13 +1,16 @@
-import { getVoidLogger } from '@backstage/backend-common';
+import { HostDiscovery, getVoidLogger } from '@backstage/backend-common';
 import { ConfigReader } from '@backstage/config';
 import express from 'express';
 import request from 'supertest';
 
-import { createRouter } from './router';
-import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse } from '@pagerduty/backstage-plugin-common';
+import { createRouter, createComponentEntitiesReferenceDict, buildEntityMappingsResponse } from './router';
+import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse, PagerDutyEntityMappingsResponse } from '@pagerduty/backstage-plugin-common';
 
 import { mocked } from "jest-mock";
 import fetch, { Response } from "node-fetch";
+import { PagerDutyBackendStore, RawDbEntityResultRow } from '../db/PagerDutyBackendDatabase';
+import { PagerDutyBackendDatabase } from '../db';
+import { TestDatabases } from '@backstage/backend-test-utils';
 
 jest.mock("node-fetch");
 
@@ -28,27 +31,42 @@ function mockedResponse(status: number, body: any): Promise<Response> {
   } as Response);
 }
 
+const testDatabase = TestDatabases.create();
+
+async function createDatabase(): Promise<PagerDutyBackendStore> {
+  return await PagerDutyBackendDatabase.create(
+    await testDatabase.init("SQLITE_3"),
+  );
+}
+
 describe('createRouter', () => {
   let app: express.Express;
 
   beforeAll(async () => {
+    const configReader = new ConfigReader({
+      app: {
+        baseUrl: 'https://example.com/extra-path',
+      },
+      backend: {
+        baseUrl: 'https://example.com/extra-path',
+      },
+      pagerDuty: {
+        apiToken: 'test-token',
+        oauth: {
+          clientId: 'test-client-id',
+          clientSecret: 'test-client',
+          subDomain: 'test-subdomain',
+          region: 'EU',
+        }
+      },
+    });
+
     const router = await createRouter(
       {
         logger: getVoidLogger(),
-        config: new ConfigReader({
-          app: {
-            baseUrl: 'https://example.com/extra-path',
-          },
-          pagerDuty: {
-            apiToken: 'test-token',
-            oauth: {
-              clientId: 'test-client-id',
-              clientSecret: 'test-client',
-              subDomain: 'test-subdomain',
-              region: 'EU',
-            }
-          },
-        }),
+        config: configReader,
+        store: await createDatabase(),
+        discovery: HostDiscovery.fromConfig(configReader),
       }
     );
     app = express().use(router);
@@ -805,6 +823,1063 @@ describe('createRouter', () => {
         const response = await request(app).get(`/services/${serviceId}/metrics`);
 
         expect(response.status).toEqual(expectedStatusCode);
+      });
+    });
+
+    describe('entity mappings', () => {
+      it("creates mapping reference dictionary from service-ids", async () => {
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-1",
+                    "pagerduty.com/service-id": "S3RV1CE1D",
+                  },
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },                    
+                  ],
+              },
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-2",
+                    "pagerduty.com/service-id": "S3RV1CE2D",
+                  },
+                  "name": "ENTITY2",
+                  "uid": "00000000-0000-4000-0000-000000000002",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER2",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER2",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER2" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const expectedReferenceDictionary: Record<string, { ref: string, name: string }> = {
+          "S3RV1CE1D": { ref: "component:default/entity1", name: "ENTITY1" },
+          "S3RV1CE2D": { ref: "component:default/entity2", name: "ENTITY2" },
+        };
+
+        const result = await createComponentEntitiesReferenceDict(mockEntitiesResponse);
+
+        expect(result).toEqual(expectedReferenceDictionary);
+      });
+
+      it("creates mapping reference dictionary from integration keys", async () => {
+        mocked(fetch).mockReturnValue(mockedResponse(200, {
+          "services": [
+            {
+              "id": "S3RV1CE1D",
+              "name": "Test Service 1",
+              "description": "Test Service Description 1",
+              "html_url": "https://example.pagerduty.com/services/S3RV1CE1D",
+              "escalation_policy": {
+                "id": "P0L1CY1D",
+                "name": "Test Escalation Policy 1",
+                "html_url": "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+              },
+            }
+          ]
+        })
+        );
+
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-1",
+                  },
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const expectedReferenceDictionary: Record<string, { ref: string, name: string }> = {
+          "S3RV1CE1D": { ref: "component:default/entity1", name: "ENTITY1" },
+        };
+
+        const result = await createComponentEntitiesReferenceDict(mockEntitiesResponse);
+
+        expect(result).toEqual(expectedReferenceDictionary);
+      });
+
+      it("builds entity mapping response for with InSync status when ONLY config mapping exists", async () => {
+        const mockEntityMappings: RawDbEntityResultRow[] = [];
+
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-1",
+                    "pagerduty.com/service-id": "S3RV1CE1D",
+                  },
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-2",
+                    "pagerduty.com/service-id": "S3RV1CE2D",
+                  },
+                  "name": "ENTITY2",
+                  "uid": "00000000-0000-4000-0000-000000000002",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER2",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER2",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER2" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const mockReferenceDictionary: Record<string, { ref: string, name: string }> = {
+          "S3RV1CE1D": { ref: "component:default/entity1", name: "ENTITY1" },
+          "S3RV1CE2D": { ref: "component:default/entity2", name: "ENTITY2" },
+        };
+
+        const mockPagerDutyServices: PagerDutyService[] = [
+          {
+            id: "S3RV1CE1D",
+            name: "Test Service 1",
+            description: "Test Service Description 1",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE1D",
+            escalation_policy: {
+              id: "P0L1CY1D",
+              name: "Test Escalation Policy 1",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M1D",
+                type: "team_reference",
+                summary: "Test Team 1",
+                name: "Test Team 1",
+                self: "https://example.pagerduty.com/teams/T34M1D"
+              }
+            ],
+            integrations: [
+              {
+                "id": "P5M1NGD",
+                "type": "app_event_transform_inbound_integration",
+                "summary": "Backstage",
+                "self": "https://api.eu.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "html_url": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "name": "Backstage",
+                "service": {
+                  "id": "S3RV1CE1D",
+                  "type": "service_reference",
+                  "summary": "S3RV1CE1D",
+                  "name": "S3RV1CE1D",
+                  "self": "https://api.eu.pagerduty.com/services/S3RV1CE1D",
+                  "html_url": "https://example.pagerduty.com/service-directory/S3RV1CE1D",
+                  escalation_policy: {
+                    "id": "P0L1CY1D",
+                    "type": "escalation_policy_reference",
+                    "summary": "Test Escalation Policy 1",
+                    "name": "Test Escalation Policy 1",
+                    "self": "https://api.eu.pagerduty.com/escalation_policies/P0L1CY1D",
+                    "html_url": "https://example.pagerduty.com/escalation-policies/P0L1CY1D"
+                  }
+                },
+                "created_at": "2023-11-23T16:43:26Z",
+                "vendor": {
+                  "id": "PRO19CT",
+                  "type": "vendor_reference",
+                  "summary": "Backstage",
+                  "self": "https://api.eu.pagerduty.com/vendors/PRO19CT",
+                },
+                "integration_key": "BACKSTAGE_INTEGRATION_KEY_1"
+              }
+            ],
+            status: "active",
+          },
+          {
+            id: "S3RV1CE2D",
+            name: "Test Service 2",
+            description: "Test Service Description 2",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE2D",
+            escalation_policy: {
+              id: "P0L1CY2D",
+              name: "Test Escalation Policy 2",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M2D",
+                type: "team_reference",
+                summary: "Test Team 2",
+                name: "Test Team 2",
+                self: "https://example.pagerduty.com/teams/T34M2D"
+              }
+            ],
+            integrations: [
+              {
+                "id": "P5M1NGD",
+                "type": "app_event_transform_inbound_integration",
+                "summary": "Backstage",
+                "self": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "html_url": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "name": "Backstage",
+                "service": {
+                  "id": "S3RV1CE2D",
+                  "type": "service_reference",
+                  "summary": "S3RV1CE2D",
+                  "name": "S3RV1CE2D",
+                  "self": "https://example.pagerduty.com/services/S3RV1CE2D",
+                  "html_url": "https://example.pagerduty.com/service-directory/S3RV1CE2D",
+                  escalation_policy: {
+                    "id": "P0L1CY2D",
+                    "type": "escalation_policy_reference",
+                    "summary": "Test Escalation Policy 2",
+                    "name": "Test Escalation Policy 2",
+                    "self": "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+                    "html_url": "https://example.pagerduty.com/escalation-policies/P0L1CY2D"
+                  }
+                },
+                "created_at": "2023-11-23T16:43:26Z",
+                "vendor": {
+                  "id": "PRO19CT",
+                  "type": "vendor_reference",
+                  "summary": "Backstage",
+                  "self": "https://api.eu.pagerduty.com/vendors/PRO19CT",
+                },
+                "integration_key": "BACKSTAGE_INTEGRATION_KEY_2"
+              }
+            ],
+            status: "active",
+          },
+        ];
+
+        const expectedResponse: PagerDutyEntityMappingsResponse = {
+          mappings: [
+            {
+              entityName: "ENTITY1",
+              entityRef: "component:default/entity1",
+              escalationPolicy: "Test Escalation Policy 1",
+              integrationKey: "BACKSTAGE_INTEGRATION_KEY_1",
+              serviceId: "S3RV1CE1D",
+              serviceName: "Test Service 1",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE1D",
+              status: "InSync",
+              team: "Test Team 1"
+            },
+            {
+              entityName: "ENTITY2",
+              entityRef: "component:default/entity2",
+              escalationPolicy: "Test Escalation Policy 2",
+              integrationKey: "BACKSTAGE_INTEGRATION_KEY_2",
+              serviceId: "S3RV1CE2D",
+              serviceName: "Test Service 2",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE2D",
+              status: "InSync",
+              team: "Test Team 2"
+            }
+          ]
+        }
+
+        const result = await buildEntityMappingsResponse(mockEntityMappings, mockReferenceDictionary, mockEntitiesResponse, mockPagerDutyServices);
+
+        expect(result).toEqual(expectedResponse);
+
+      });
+
+      it("builds entity mapping response for with OutOfSync status when config mapping doesn't match database override", async () => {
+        const mockEntityMappings: RawDbEntityResultRow[] = [
+          {
+            entityRef: "component:default/entity1",
+            serviceId: "S3RV1CE1D",
+            integrationKey: "BACKSTAGE_INTEGRATION_KEY_OVERRIDE_1",
+            id: "1",
+          }
+        ];
+
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-1",
+                    "pagerduty.com/service-id": "S3RV1CE1D",
+                  },
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-2",
+                    "pagerduty.com/service-id": "S3RV1CE2D",
+                  },
+                  "name": "ENTITY2",
+                  "uid": "00000000-0000-4000-0000-000000000002",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER2",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER2",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER2" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const mockReferenceDictionary: Record<string, { ref: string, name: string }> = {
+          "S3RV1CE1D": { ref: "component:default/entity1", name: "ENTITY1" },
+          "S3RV1CE2D": { ref: "component:default/entity2", name: "ENTITY2" },
+        };
+
+        const mockPagerDutyServices: PagerDutyService[] = [
+          {
+            id: "S3RV1CE1D",
+            name: "Test Service 1",
+            description: "Test Service Description 1",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE1D",
+            escalation_policy: {
+              id: "P0L1CY1D",
+              name: "Test Escalation Policy 1",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M1D",
+                type: "team_reference",
+                summary: "Test Team 1",
+                name: "Test Team 1",
+                self: "https://example.pagerduty.com/teams/T34M1D"
+              }
+            ],
+            integrations: [
+              {
+                "id": "P5M1NGD",
+                "type": "app_event_transform_inbound_integration",
+                "summary": "Backstage",
+                "self": "https://api.eu.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "html_url": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "name": "Backstage",
+                "service": {
+                  "id": "S3RV1CE1D",
+                  "type": "service_reference",
+                  "summary": "S3RV1CE1D",
+                  "name": "S3RV1CE1D",
+                  "self": "https://api.eu.pagerduty.com/services/S3RV1CE1D",
+                  "html_url": "https://example.pagerduty.com/service-directory/S3RV1CE1D",
+                  escalation_policy: {
+                    "id": "P0L1CY1D",
+                    "type": "escalation_policy_reference",
+                    "summary": "Test Escalation Policy 1",
+                    "name": "Test Escalation Policy 1",
+                    "self": "https://api.eu.pagerduty.com/escalation_policies/P0L1CY1D",
+                    "html_url": "https://example.pagerduty.com/escalation-policies/P0L1CY1D"
+                  }
+                },
+                "created_at": "2023-11-23T16:43:26Z",
+                "vendor": {
+                  "id": "PRO19CT",
+                  "type": "vendor_reference",
+                  "summary": "Backstage",
+                  "self": "https://api.eu.pagerduty.com/vendors/PRO19CT",
+                },
+                "integration_key": "BACKSTAGE_INTEGRATION_KEY_1"
+              }
+            ],
+            status: "active",
+          },
+          {
+            id: "S3RV1CE2D",
+            name: "Test Service 2",
+            description: "Test Service Description 2",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE2D",
+            escalation_policy: {
+              id: "P0L1CY2D",
+              name: "Test Escalation Policy 2",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M2D",
+                type: "team_reference",
+                summary: "Test Team 2",
+                name: "Test Team 2",
+                self: "https://example.pagerduty.com/teams/T34M2D"
+              }
+            ],
+            integrations: [
+              {
+                "id": "P5M1NGD",
+                "type": "app_event_transform_inbound_integration",
+                "summary": "Backstage",
+                "self": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "html_url": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "name": "Backstage",
+                "service": {
+                  "id": "S3RV1CE2D",
+                  "type": "service_reference",
+                  "summary": "S3RV1CE2D",
+                  "name": "S3RV1CE2D",
+                  "self": "https://example.pagerduty.com/services/S3RV1CE2D",
+                  "html_url": "https://example.pagerduty.com/service-directory/S3RV1CE2D",
+                  escalation_policy: {
+                    "id": "P0L1CY2D",
+                    "type": "escalation_policy_reference",
+                    "summary": "Test Escalation Policy 2",
+                    "name": "Test Escalation Policy 2",
+                    "self": "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+                    "html_url": "https://example.pagerduty.com/escalation-policies/P0L1CY2D"
+                  }
+                },
+                "created_at": "2023-11-23T16:43:26Z",
+                "vendor": {
+                  "id": "PRO19CT",
+                  "type": "vendor_reference",
+                  "summary": "Backstage",
+                  "self": "https://api.eu.pagerduty.com/vendors/PRO19CT",
+                },
+                "integration_key": "BACKSTAGE_INTEGRATION_KEY_2"
+              }
+            ],
+            status: "active",
+          },
+        ];
+
+        const expectedResponse: PagerDutyEntityMappingsResponse = {
+          mappings: [
+            {
+              entityName: "ENTITY1",
+              entityRef: "component:default/entity1",
+              escalationPolicy: "Test Escalation Policy 1",
+              integrationKey: "BACKSTAGE_INTEGRATION_KEY_OVERRIDE_1",
+              serviceId: "S3RV1CE1D",
+              serviceName: "Test Service 1",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE1D",
+              status: "InSync",
+              team: "Test Team 1"
+            },
+            {
+              entityName: "ENTITY2",
+              entityRef: "component:default/entity2",
+              escalationPolicy: "Test Escalation Policy 2",
+              integrationKey: "BACKSTAGE_INTEGRATION_KEY_2",
+              serviceId: "S3RV1CE2D",
+              serviceName: "Test Service 2",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE2D",
+              status: "InSync",
+              team: "Test Team 2"
+            }
+          ]
+        }
+
+        const result = await buildEntityMappingsResponse(mockEntityMappings, mockReferenceDictionary, mockEntitiesResponse, mockPagerDutyServices);
+
+        expect(result).toEqual(expectedResponse);
+
+      });
+
+      it("builds entity mapping response with NotMapped status when config nor database entry exist", async () => {
+        const mockEntityMappings: RawDbEntityResultRow[] = [
+          {
+            entityRef: "component:default/entity3",
+            serviceId: "S3RV1CE3D",
+            integrationKey: "BACKSTAGE_INTEGRATION_KEY_3",
+            id: "1",
+          }
+        ];
+
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations": {},
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const mockReferenceDictionary: Record<string, { ref: string, name: string }> = {};
+
+        const mockPagerDutyServices: PagerDutyService[] = [
+          {
+            id: "S3RV1CE1D",
+            name: "Test Service 1",
+            description: "Test Service Description 1",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE1D",
+            escalation_policy: {
+              id: "P0L1CY1D",
+              name: "Test Escalation Policy 1",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M1D",
+                type: "team_reference",
+                summary: "Test Team 1",
+                name: "Test Team 1",
+                self: "https://example.pagerduty.com/teams/T34M1D"
+              }
+            ],
+            integrations: [],
+            status: "active",
+          },
+          {
+            id: "S3RV1CE2D",
+            name: "Test Service 2",
+            description: "Test Service Description 2",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE2D",
+            escalation_policy: {
+              id: "P0L1CY2D",
+              name: "Test Escalation Policy 2",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M2D",
+                type: "team_reference",
+                summary: "Test Team 2",
+                name: "Test Team 2",
+                self: "https://example.pagerduty.com/teams/T34M2D"
+              }
+            ],
+            integrations: [],
+            status: "active",
+          },
+        ];
+
+        const expectedResponse: PagerDutyEntityMappingsResponse = {
+          mappings: [
+            {
+              entityName: "",
+              entityRef: "",
+              escalationPolicy: "Test Escalation Policy 1",
+              integrationKey: "",
+              serviceId: "S3RV1CE1D",
+              serviceName: "Test Service 1",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE1D",
+              status: "NotMapped",
+              team: "Test Team 1"
+            },
+            {
+              entityName: "",
+              entityRef: "",
+              escalationPolicy: "Test Escalation Policy 2",
+              integrationKey: "",
+              serviceId: "S3RV1CE2D",
+              serviceName: "Test Service 2",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE2D",
+              status: "NotMapped",
+              team: "Test Team 2"
+            }
+          ]
+        }
+
+        const result = await buildEntityMappingsResponse(mockEntityMappings, mockReferenceDictionary, mockEntitiesResponse, mockPagerDutyServices);
+
+        expect(result).toEqual(expectedResponse);
+
+      });
+
+      it("builds entity mapping response with InSync status when config mapping matches database override", async () => {
+        const mockEntityMappings: RawDbEntityResultRow[] = [
+          {
+            entityRef: "component:default/entity1",
+            serviceId: "S3RV1CE1D",
+            integrationKey: "BACKSTAGE_INTEGRATION_KEY_1",
+            id: "1",
+          }
+        ];
+
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-1",
+                    "pagerduty.com/service-id": "S3RV1CE1D",
+                  },
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-2",
+                    "pagerduty.com/service-id": "S3RV1CE2D",
+                  },
+                  "name": "ENTITY2",
+                  "uid": "00000000-0000-4000-0000-000000000002",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER2",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER2",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER2" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const mockReferenceDictionary: Record<string, { ref: string, name: string }> = {
+          "S3RV1CE1D": { ref: "component:default/entity1", name: "ENTITY1" },
+          "S3RV1CE2D": { ref: "component:default/entity2", name: "ENTITY2" },
+        };
+
+        const mockPagerDutyServices: PagerDutyService[] = [
+          {
+            id: "S3RV1CE1D",
+            name: "Test Service 1",
+            description: "Test Service Description 1",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE1D",
+            escalation_policy: {
+              id: "P0L1CY1D",
+              name: "Test Escalation Policy 1",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY1D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M1D",
+                type: "team_reference",
+                summary: "Test Team 1",
+                name: "Test Team 1",
+                self: "https://example.pagerduty.com/teams/T34M1D"
+              }
+            ],
+            integrations: [
+              {
+                "id": "P5M1NGD",
+                "type": "app_event_transform_inbound_integration",
+                "summary": "Backstage",
+                "self": "https://api.eu.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "html_url": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "name": "Backstage",
+                "service": {
+                  "id": "S3RV1CE1D",
+                  "type": "service_reference",
+                  "summary": "S3RV1CE1D",
+                  "name": "S3RV1CE1D",
+                  "self": "https://api.eu.pagerduty.com/services/S3RV1CE1D",
+                  "html_url": "https://example.pagerduty.com/service-directory/S3RV1CE1D",
+                  escalation_policy: {
+                    "id": "P0L1CY1D",
+                    "type": "escalation_policy_reference",
+                    "summary": "Test Escalation Policy 1",
+                    "name": "Test Escalation Policy 1",
+                    "self": "https://api.eu.pagerduty.com/escalation_policies/P0L1CY1D",
+                    "html_url": "https://example.pagerduty.com/escalation-policies/P0L1CY1D"
+                  }
+                },
+                "created_at": "2023-11-23T16:43:26Z",
+                "vendor": {
+                  "id": "PRO19CT",
+                  "type": "vendor_reference",
+                  "summary": "Backstage",
+                  "self": "https://api.eu.pagerduty.com/vendors/PRO19CT",
+                },
+                "integration_key": "BACKSTAGE_INTEGRATION_KEY_1"
+              }
+            ],
+            status: "active",
+          },
+          {
+            id: "S3RV1CE2D",
+            name: "Test Service 2",
+            description: "Test Service Description 2",
+            html_url: "https://example.pagerduty.com/services/S3RV1CE2D",
+            escalation_policy: {
+              id: "P0L1CY2D",
+              name: "Test Escalation Policy 2",
+              html_url: "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+              type: "escalation_policy_reference",
+            },
+            teams: [
+              {
+                id: "T34M2D",
+                type: "team_reference",
+                summary: "Test Team 2",
+                name: "Test Team 2",
+                self: "https://example.pagerduty.com/teams/T34M2D"
+              }
+            ],
+            integrations: [
+              {
+                "id": "P5M1NGD",
+                "type": "app_event_transform_inbound_integration",
+                "summary": "Backstage",
+                "self": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "html_url": "https://example.pagerduty.com/services/S3RV1CE1D/integrations/P5M1NGD",
+                "name": "Backstage",
+                "service": {
+                  "id": "S3RV1CE2D",
+                  "type": "service_reference",
+                  "summary": "S3RV1CE2D",
+                  "name": "S3RV1CE2D",
+                  "self": "https://example.pagerduty.com/services/S3RV1CE2D",
+                  "html_url": "https://example.pagerduty.com/service-directory/S3RV1CE2D",
+                  escalation_policy: {
+                    "id": "P0L1CY2D",
+                    "type": "escalation_policy_reference",
+                    "summary": "Test Escalation Policy 2",
+                    "name": "Test Escalation Policy 2",
+                    "self": "https://example.pagerduty.com/escalation_policies/P0L1CY2D",
+                    "html_url": "https://example.pagerduty.com/escalation-policies/P0L1CY2D"
+                  }
+                },
+                "created_at": "2023-11-23T16:43:26Z",
+                "vendor": {
+                  "id": "PRO19CT",
+                  "type": "vendor_reference",
+                  "summary": "Backstage",
+                  "self": "https://api.eu.pagerduty.com/vendors/PRO19CT",
+                },
+                "integration_key": "BACKSTAGE_INTEGRATION_KEY_2"
+              }
+            ],
+            status: "active",
+          },
+        ];
+
+        const expectedResponse: PagerDutyEntityMappingsResponse = {
+          mappings: [
+            {
+              entityName: "ENTITY1",
+              entityRef: "component:default/entity1",
+              escalationPolicy: "Test Escalation Policy 1",
+              integrationKey: "BACKSTAGE_INTEGRATION_KEY_1",
+              serviceId: "S3RV1CE1D",
+              serviceName: "Test Service 1",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE1D",
+              status: "InSync",
+              team: "Test Team 1"
+            },
+            {
+              entityName: "ENTITY2",
+              entityRef: "component:default/entity2",
+              escalationPolicy: "Test Escalation Policy 2",
+              integrationKey: "BACKSTAGE_INTEGRATION_KEY_2",
+              serviceId: "S3RV1CE2D",
+              serviceName: "Test Service 2",
+              serviceUrl: "https://example.pagerduty.com/services/S3RV1CE2D",
+              status: "InSync",
+              team: "Test Team 2"
+            }
+          ]
+        }
+
+        const result = await buildEntityMappingsResponse(mockEntityMappings, mockReferenceDictionary, mockEntitiesResponse, mockPagerDutyServices);
+
+        expect(result).toEqual(expectedResponse);
+
       });
     });
   });

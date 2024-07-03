@@ -18,7 +18,8 @@ import {
     PagerDutyIncidentsResponse,
     PagerDutyServiceStandards,
     PagerDutyServiceMetrics,
-    HttpError
+    HttpError,
+    PagerDutyServicesAPIResponse
 } from '@pagerduty/backstage-plugin-common';
 
 import { DateTime } from 'luxon';
@@ -299,6 +300,53 @@ export async function getServiceByIntegrationKey(integrationKey: string): Promis
     }
 
     return result.services[0];
+}
+
+export async function getAllServices(): Promise<PagerDutyService[]> {
+    let response: Response;
+    const params = `time_zone=UTC&include[]=integrations&include[]=escalation_policies&include[]=teams&total=true`;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: await getAuthToken(),
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+    const baseUrl = `${apiBaseUrl}/services`;
+
+    const allServices: PagerDutyService[] = [];
+    let offset = 0;
+    const limit = 50;
+    let result: PagerDutyServicesAPIResponse;
+
+    try {
+        do {
+            const paginatedUrl = `${baseUrl}?${params}&offset=${offset}&limit=${limit}`;
+            response = await fetch(paginatedUrl, options);
+
+            switch (response.status) {
+                case 400:
+                    throw new HttpError("Failed to get services. Caller provided invalid arguments.", 400);
+                case 401:
+                    throw new HttpError("Failed to get services. Caller did not supply credentials or did not provide the correct credentials.", 401);
+                case 403:
+                    throw new HttpError("Failed to get services. Caller is not authorized to view the requested resource.", 403);
+                default: // 200
+                    break;
+            }
+
+            result = await response.json() as PagerDutyServicesAPIResponse;
+            
+            allServices.push(...result.services);
+
+            offset += limit;
+        } while (offset < result.total!);
+    } catch (error) {
+        throw error;
+    }
+
+    return allServices;
 }
 
 export async function getChangeEvents(serviceId: string): Promise<PagerDutyChangeEvent[]> {
