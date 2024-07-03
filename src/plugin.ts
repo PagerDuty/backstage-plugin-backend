@@ -1,5 +1,26 @@
-import { coreServices, createBackendPlugin } from '@backstage/backend-plugin-api';
+import { AuthService, LoggerService, coreServices, createBackendPlugin } from '@backstage/backend-plugin-api';
 import { createRouter } from './service/router';
+import { PagerDutyBackendDatabase, PagerDutyBackendStore } from './db';
+import { CatalogClient } from '@backstage/catalog-client';
+
+class CatalogFetchApi {
+    constructor(
+        private readonly logger: LoggerService,
+        private readonly auth: AuthService,
+    ) {}
+
+    async fetch(input: any, init: RequestInit | undefined) : Promise<Response>{
+        const request = new Request(input as any, init);
+        const { token } = await this.auth.getPluginRequestToken({
+            onBehalfOf: await this.auth.getOwnServiceCredentials(),
+            targetPluginId: 'catalog',
+        });
+
+        request.headers.set('Authorization', `Bearer ${token}`);
+        this.logger.debug(`Added token to outgoing request to ${request.url}`);
+        return fetch(request);
+    }
+}
 
 /** @public */
 export const pagerDutyPlugin = createBackendPlugin({
@@ -9,13 +30,29 @@ export const pagerDutyPlugin = createBackendPlugin({
             deps: {
                 logger: coreServices.logger,
                 config: coreServices.rootConfig,
-                httpRouter: coreServices.httpRouter,               
+                httpRouter: coreServices.httpRouter,  
+                database: coreServices.database, 
+                discovery: coreServices.discovery,
+                auth: coreServices.auth,
             },
-            async init({ config, logger, httpRouter }) {
+            async init({ config, logger, httpRouter, database, discovery, auth }) {
+
+                const pagerDutyBackendStore : PagerDutyBackendStore = await PagerDutyBackendDatabase.create(
+                    await database.getClient(),
+                    { skipMigrations: true },
+                );
+
                 httpRouter.use(
                     await createRouter({
                         config,
                         logger,
+                        store: pagerDutyBackendStore,
+                        discovery,
+                        auth,
+                        catalogApi: new CatalogClient({
+                            discoveryApi: discovery,
+                            fetchApi: new CatalogFetchApi(logger, auth),
+                        })
                     }),
                 );
                 httpRouter.addAuthPolicy({

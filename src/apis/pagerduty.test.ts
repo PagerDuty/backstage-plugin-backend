@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-conditional-expect */
 import { HttpError, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
-import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceMetrics, getServiceStandards } from "./pagerduty";
+import { getAllEscalationPolicies, getAllServices, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceMetrics, getServiceStandards } from "./pagerduty";
 
 import { mocked } from "jest-mock";
 import fetch, { Response } from "node-fetch";
@@ -688,6 +688,126 @@ describe("PagerDuty API", () => {
             });
         });
 
+        describe("getAllServices", () => {
+            it.each(testInputs)("show return list of PagerDuty services", async () => {
+                const expectedResponse: PagerDutyService[] = [{
+                    id: "S3RV1CE1D",
+                    name: "Test Service",
+                    description: "Test Service Description",
+                    html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
+                    escalation_policy: {
+                        id: "P0L1CY1D",
+                        name: "Test Escalation Policy",
+                        html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                        type: "escalation_policy_reference",
+                    },
+                    status: "active",
+                },
+                {
+                    id: "S3RV1CE2D",
+                    name: "Test Service",
+                    description: "Test Service Description",
+                    html_url: "https://testaccount.pagerduty.com/services/S3RV1CE2D",
+                    escalation_policy: {
+                        id: "P0L1CY1D",
+                        name: "Test Escalation Policy",
+                        html_url: "https://testaccount.pagerduty.com/escalation_policies/P0L1CY1D",
+                        type: "escalation_policy_reference",
+                    },
+                    status: "active",
+                }];
+
+                const mockAPIResponse = {
+                    "services": [
+                    {
+                        "id": expectedResponse[0].id,
+                        "name": expectedResponse[0].name,
+                            "description": expectedResponse[0].description,
+                            "status": expectedResponse[0].status,
+                        "escalation_policy": {
+                            "id": expectedResponse[0].escalation_policy.id,
+                            "name": expectedResponse[0].escalation_policy.name,
+                            "type": expectedResponse[0].escalation_policy.type,
+                            "html_url": expectedResponse[0].escalation_policy.html_url
+                        },
+                            "html_url": expectedResponse[0].html_url
+                    },
+                    {
+                        "id": expectedResponse[1].id,
+                        "name": expectedResponse[1].name,
+                        "description": expectedResponse[1].description,
+                        "status": expectedResponse[1].status,
+                        "escalation_policy": {
+                            "id": expectedResponse[1].escalation_policy.id,
+                            "name": expectedResponse[1].escalation_policy.name,
+                            "type": expectedResponse[1].escalation_policy.type,
+                            "html_url": expectedResponse[1].escalation_policy.html_url
+                        },
+                        "html_url": expectedResponse[1].html_url
+                    }]
+                };
+
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(200, mockAPIResponse)
+                );
+
+                const result = await getAllServices();
+
+                expect(result).toEqual(expectedResponse);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+
+            it.each(testInputs)("should NOT get services when caller provides invalid arguments", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(400, {})
+                );
+
+                const expectedStatusCode = 400;
+                const expectedErrorMessage = "Failed to get services. Caller provided invalid arguments.";
+
+                try {
+                    await getAllServices();
+                } catch (error) {
+                    expect(fetch).toHaveBeenCalledTimes(1);
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it.each(testInputs)("should NOT get services when correct credentials are not provided", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(401, {})
+                );
+
+                const expectedStatusCode = 401;
+                const expectedErrorMessage = "Failed to get services. Caller did not supply credentials or did not provide the correct credentials.";
+
+                try {
+                    await getAllServices();
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+
+            it.each(testInputs)("should NOT get services when credentials are provided but don't have the necessary permissions", async () => {
+                mocked(fetch).mockReturnValue(
+                    mockedResponse(403, {})
+                );
+
+                const expectedStatusCode = 403;
+                const expectedErrorMessage = "Failed to get services. Caller is not authorized to view the requested resource.";
+
+                try {
+                    await getAllServices();
+                } catch (error) {
+                    expect(((error as HttpError).status)).toEqual(expectedStatusCode);
+                    expect(((error as HttpError).message)).toEqual(expectedErrorMessage);
+                }
+            });
+        });
+    
         describe("getServicesById", () => {
             it.each(testInputs)("should return service when 'service_id' is provided", async () => {
                 const serviceId = "SERV1C31D";
