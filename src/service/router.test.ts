@@ -999,6 +999,62 @@ describe('createRouter', () => {
         expect(result).toEqual(expectedReferenceDictionary);
       });
 
+      it("ignores invalid integration keys when building entity mapping reference", async () => {
+        mocked(fetch).mockReturnValue(mockedResponse(200, {"services": []}));
+
+        const mockEntitiesResponse = {
+          "items":
+            [
+              {
+                "metadata":
+                {
+                  "namespace": "default",
+                  "annotations":
+                  {
+                    "pagerduty.com/integration-key": "PAGERDUTY-INTEGRATION-KEY-1",
+                  },
+                  "name": "ENTITY1",
+                  "uid": "00000000-0000-4000-0000-000000000001",
+                },
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "spec":
+                {
+                  "type": "website",
+                  "lifecycle": "experimental",
+                  "owner": "OWNER1",
+                  "system": "SYSTEM1",
+                },
+                "relations":
+                  [
+                    {
+                      "type": "ownedBy",
+                      "targetRef": "group:default/OWNER1",
+                      "target":
+                        { "kind": "group", "namespace": "default", "name": "OWNER1" },
+                    },
+                    {
+                      "type": "partOf",
+                      "targetRef": "system:default/SYSTEM1",
+                      "target":
+                      {
+                        "kind": "system",
+                        "namespace": "default",
+                        "name": "SYSTEM1",
+                      },
+                    },
+                  ],
+              },
+            ],
+        };
+
+        const expectedReferenceDictionary: Record<string, { ref: string, name: string }> = {};
+
+        const result = await createComponentEntitiesReferenceDict(mockEntitiesResponse);
+
+        expect(result).toEqual(expectedReferenceDictionary);
+      });
+
       it("builds entity mapping response for with InSync status when ONLY config mapping exists", async () => {
         const mockEntityMappings: RawDbEntityResultRow[] = [];
 

@@ -38,8 +38,9 @@ export async function createComponentEntitiesReferenceDict({ items: componentEnt
             };
         }
         else if (integrationKey !== undefined && integrationKey !== "") {
-            // get service id from integration key
-            const service : PagerDutyService = await getServiceByIntegrationKey(integrationKey);
+            // get service id from integration key, we ignore errors here since we're focused
+            // only on building a mapping between valid service IDs and the corresponding Backstage entity
+            const service = await getServiceByIntegrationKey(integrationKey).catch(() => undefined);
 
             if (service !== undefined) {
                 componentEntitiesDict[service.id] = {
