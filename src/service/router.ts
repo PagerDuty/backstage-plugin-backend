@@ -25,7 +25,7 @@ export type Annotations = {
 
 export async function createComponentEntitiesReferenceDict({ items: componentEntities }: GetEntitiesResponse): Promise<Record<string, { ref: string, name: string }>> {
     const componentEntitiesDict: Record<string, { ref: string, name: string }> = {};
-    
+
     await Promise.all(componentEntities.map(async (entity) => {
         const annotations: Annotations = JSON.parse(JSON.stringify(entity.metadata.annotations));
         const serviceId = annotations['pagerduty.com/service-id'];
@@ -38,10 +38,10 @@ export async function createComponentEntitiesReferenceDict({ items: componentEnt
             };
         }
         else if (integrationKey !== undefined && integrationKey !== "") {
-            // get service id from integration key  
+            // get service id from integration key
             const service : PagerDutyService = await getServiceByIntegrationKey(integrationKey);
 
-            if (service !== undefined) {                
+            if (service !== undefined) {
                 componentEntitiesDict[service.id] = {
                     ref: `${entity.kind}:${entity.metadata.namespace}/${entity.metadata.name}`.toLowerCase(),
                     name: entity.metadata.name,
@@ -54,11 +54,11 @@ export async function createComponentEntitiesReferenceDict({ items: componentEnt
 }
 
 export async function buildEntityMappingsResponse(
-    entityMappings: RawDbEntityResultRow[], 
+    entityMappings: RawDbEntityResultRow[],
     componentEntitiesDict: Record<string, {
         ref: string;
         name: string;
-    }>, 
+    }>,
     componentEntities: GetEntitiesResponse,
     pagerDutyServices: PagerDutyService[]
     ) : Promise<PagerDutyEntityMappingsResponse> {
@@ -66,7 +66,7 @@ export async function buildEntityMappingsResponse(
     const result: PagerDutyEntityMappingsResponse = {
         mappings: []
     };
-    
+
     pagerDutyServices.forEach((service) => {
         // Check for service mapping annotation in any entity config file and get the entity ref
         const entityRef = componentEntitiesDict[service.id]?.ref;
@@ -85,7 +85,7 @@ export async function buildEntityMappingsResponse(
                         serviceId: entityMapping.serviceId,
                         status: "NotMapped",
                         serviceName: service.name,
-                        team: service.teams !== undefined ? service.teams[0].name : "",
+                        team: service.teams?.[0]?.name ?? "",
                         escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                         serviceUrl: service.html_url,
                     });
@@ -100,7 +100,7 @@ export async function buildEntityMappingsResponse(
                         integrationKey: entityMapping.integrationKey,
                         status: "OutOfSync",
                         serviceName: service.name,
-                        team: service.teams !== undefined ? service.teams[0].name : "",
+                        team: service.teams?.[0]?.name ?? "",
                         escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                         serviceUrl: service.html_url,
                     });
@@ -115,7 +115,7 @@ export async function buildEntityMappingsResponse(
                     integrationKey: entityMapping.integrationKey,
                     status: "OutOfSync",
                     serviceName: service.name,
-                    team: service.teams !== undefined ? service.teams[0].name : "",
+                    team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
                 });
@@ -127,7 +127,7 @@ export async function buildEntityMappingsResponse(
                     integrationKey: entityMapping.integrationKey,
                     status: "InSync",
                     serviceName: service.name,
-                    team: service.teams !== undefined ? service.teams[0].name : "",
+                    team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
                 });
@@ -144,7 +144,7 @@ export async function buildEntityMappingsResponse(
                     integrationKey: backstageIntegrationKey,
                     status: "InSync",
                     serviceName: service.name,
-                    team: service.teams !== undefined ? service.teams[0].name : "",
+                    team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
                 });
@@ -156,7 +156,7 @@ export async function buildEntityMappingsResponse(
                     integrationKey: backstageIntegrationKey,
                     status: "NotMapped",
                     serviceName: service.name,
-                    team: service.teams !== undefined ? service.teams[0].name : "",
+                    team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
                 });
@@ -219,7 +219,7 @@ export async function createRouter(
             }
 
             if (oldMapping && oldMapping.entityRef !== "") {
-                // force refresh of old entity 
+                // force refresh of old entity
                 await catalogApi?.refreshEntity(oldMapping.entityRef);
             }
 
