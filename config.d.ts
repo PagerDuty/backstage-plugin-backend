@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { PagerDutyOAuthConfig } from '@pagerduty/backstage-plugin-common';
+import { PagerDutyAccountConfig, PagerDutyOAuthConfig } from '@pagerduty/backstage-plugin-common';
 
 export interface Config {
     /**
@@ -42,5 +42,10 @@ export interface Config {
          * @deepVisibility secret
          */
         oauth?: PagerDutyOAuthConfig;
+        /**
+         * Optional PagerDuty multi-account configuration
+         * @deepVisibility secret
+         */
+        accounts?: PagerDutyAccountConfig[];
     };
 }

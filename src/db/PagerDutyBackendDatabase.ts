@@ -8,6 +8,7 @@ export type RawDbEntityResultRow = {
     entityRef: string;
     serviceId: string;
     integrationKey: string;
+    account?: string;
     processedDate?: Date;
 };
 
@@ -47,10 +48,11 @@ export class PagerDutyBackendDatabase implements PagerDutyBackendStore {
                 entityRef: entity.entityRef,
                 serviceId: entity.serviceId,
                 integrationKey: entity.integrationKey,
+                account: entity.account,
                 processedDate: new Date(),
             })
-            .onConflict('serviceId')
-            .merge(['entityRef', 'integrationKey', 'processedDate'])
+            .onConflict(['serviceId'])
+            .merge(['entityRef', 'integrationKey', 'account', 'processedDate'])
             .returning('id');
 
         return result.id;
