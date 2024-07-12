@@ -4907,7 +4907,7 @@ __metadata:
     "@backstage/plugin-catalog-node": ^1.12.0
     "@backstage/plugin-scaffolder-node": ^0.4.4
     "@material-ui/core": ^4.12.4
-    "@pagerduty/backstage-plugin-common": 0.1.5
+    "@pagerduty/backstage-plugin-common": 0.2.0
     "@rjsf/core": ^5.14.3
     "@types/express": ^4.17.6
     "@types/node": ^20.9.2
@@ -4931,10 +4931,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@pagerduty/backstage-plugin-common@npm:0.1.5":
-  version: 0.1.5
-  resolution: "@pagerduty/backstage-plugin-common@npm:0.1.5"
-  checksum: 07d527c07aee79d5bb6bf7f310827b11534922c1f817b2cea5cf672ebe393b2def07293b2d42241a033f257139f8d935114edd5e9385dbbc427f8720f20265b6
+"@pagerduty/backstage-plugin-common@npm:0.2.0":
+  version: 0.2.0
+  resolution: "@pagerduty/backstage-plugin-common@npm:0.2.0"
+  checksum: d7243ef9c11408eee046be351346455316dcd8984c33a61d773fec292843d3df9eb9906dfc5ce0ed4fc0c17a60b9b3ebbfe1a8f4a25b8ecc003ffa8d4304db77
   languageName: node
   linkType: hard
 

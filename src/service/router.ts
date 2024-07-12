@@ -1,6 +1,6 @@
 import { AuthService, DiscoveryService, LoggerService, RootConfigService } from '@backstage/backend-plugin-api';
 import { createLegacyAuthAdapters, errorHandler } from '@backstage/backend-common';
-import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, setAPIBaseUrl, getServiceStandards, getServiceMetrics, getAllServices } from '../apis/pagerduty';
+import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceStandards, getServiceMetrics, getAllServices, loadPagerDutyEndpointsFromConfig } from '../apis/pagerduty';
 import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse, PagerDutyServicesResponse, PagerDutyEntityMapping, PagerDutyEntityMappingsResponse, PagerDutyService } from '@pagerduty/backstage-plugin-common';
 import { loadAuthConfig } from '../auth/auth';
 import { PagerDutyBackendStore, RawDbEntityResultRow } from '../db/PagerDutyBackendDatabase';
@@ -21,6 +21,7 @@ export interface RouterOptions {
 export type Annotations = {
     "pagerduty.com/integration-key": string;
     "pagerduty.com/service-id": string;
+    "pagerduty.com/account": string;
 }
 
 export async function createComponentEntitiesReferenceDict({ items: componentEntities }: GetEntitiesResponse): Promise<Record<string, { ref: string, name: string }>> {
@@ -30,6 +31,7 @@ export async function createComponentEntitiesReferenceDict({ items: componentEnt
         const annotations: Annotations = JSON.parse(JSON.stringify(entity.metadata.annotations));
         const serviceId = annotations['pagerduty.com/service-id'];
         const integrationKey = annotations['pagerduty.com/integration-key'];
+        const account = annotations['pagerduty.com/account'] ?? "";
 
         if (serviceId !== undefined && serviceId !== "") {
             componentEntitiesDict[serviceId] = {
@@ -39,7 +41,7 @@ export async function createComponentEntitiesReferenceDict({ items: componentEnt
         }
         else if (integrationKey !== undefined && integrationKey !== "") {
             // get service id from integration key
-            const service : PagerDutyService = await getServiceByIntegrationKey(integrationKey);
+            const service : PagerDutyService = await getServiceByIntegrationKey(integrationKey, account);
 
             if (service !== undefined) {
                 componentEntitiesDict[service.id] = {
@@ -88,6 +90,7 @@ export async function buildEntityMappingsResponse(
                         team: service.teams?.[0]?.name ?? "",
                         escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                         serviceUrl: service.html_url,
+                        account: service.account,
                     });
                 }
                 else {
@@ -103,6 +106,7 @@ export async function buildEntityMappingsResponse(
                         team: service.teams?.[0]?.name ?? "",
                         escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                         serviceUrl: service.html_url,
+                        account: service.account,
                     });
                 }
             } else if (entityRef !== entityMapping.entityRef) {
@@ -118,6 +122,7 @@ export async function buildEntityMappingsResponse(
                     team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
+                    account: service.account,
                 });
             } else if (entityRef === entityMapping.entityRef) {
                 result.mappings.push({
@@ -130,6 +135,7 @@ export async function buildEntityMappingsResponse(
                     team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
+                    account: service.account,
                 });
             }
         } else {
@@ -147,6 +153,7 @@ export async function buildEntityMappingsResponse(
                     team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
+                    account: service.account,
                 });
             } else {
                 result.mappings.push({
@@ -159,6 +166,7 @@ export async function buildEntityMappingsResponse(
                     team: service.teams?.[0]?.name ?? "",
                     escalationPolicy: service.escalation_policy !== undefined ? service.escalation_policy.name : "",
                     serviceUrl: service.html_url,
+                    account: service.account,
                 });
             }
         }
@@ -188,9 +196,8 @@ export async function createRouter(
     // Get authentication Config
     await loadAuthConfig(config, logger);
 
-    // Get the PagerDuty API Base URL from config
-    const baseUrl = config.getOptionalString('pagerDuty.apiBaseUrl') !== undefined ? config.getString('pagerDuty.apiBaseUrl') : 'https://api.pagerduty.com';
-    setAPIBaseUrl(baseUrl);
+    // Get optional PagerDuty custom endpoints from config
+    loadPagerDutyEndpointsFromConfig(config, logger);
 
     // Create the router
     const router = Router();
@@ -229,6 +236,7 @@ export async function createRouter(
                 integrationKey: entity.integrationKey,
                 serviceId: entity.serviceId,
                 status: entity.status,
+                account: entity.account,
             });
         } catch (error) {
             if (error instanceof HttpError) {
@@ -248,6 +256,8 @@ export async function createRouter(
             // Get all the entity mappings from the database
             const entityMappings = await store.getAllEntityMappings();
 
+            logger.info(`Retrieved ${entityMappings.length} entity mappings from the database.`);
+
             // Get all the entities from the catalog
             const componentEntities = await catalogApi!.getEntities({
                 filter: {
@@ -255,18 +265,21 @@ export async function createRouter(
                 }
             });
 
+            logger.info(`Retrieved ${componentEntities.items.length} entities from the catalog.`);
+
             // Build reference dictionary of componentEntities with serviceId as the key and entity reference and name pair as the value
             const componentEntitiesDict: Record<string, { ref: string, name: string }> = await createComponentEntitiesReferenceDict(componentEntities);
 
             // Get all services from PagerDuty
             const pagerDutyServices = await getAllServices();
 
+            logger.info(`Retrieved ${pagerDutyServices.length} services from PagerDuty.`);
+
             // Build the response object
             const result: PagerDutyEntityMappingsResponse = await buildEntityMappingsResponse(entityMappings, componentEntitiesDict, componentEntities, pagerDutyServices);
 
             response.json(result);
         } catch (error) {
-            console.log(error);
             if (error instanceof HttpError) {
                 response.status(error.status).json({
                     errors: [
@@ -321,12 +334,26 @@ export async function createRouter(
     // Add routes
     // GET /escalation_policies
     router.get('/escalation_policies', async (_, response) => {
+        
         try {
-            const escalationPolicyList = await getAllEscalationPolicies();
+            let escalationPolicyList = await getAllEscalationPolicies();
+
+            // sort the escalation policies by account and name
+            escalationPolicyList = escalationPolicyList.sort((a, b) => {
+                if (a.account === b.account) {
+                    return a.name.localeCompare(b.name);
+                }
+                return a.account!.localeCompare(b.account!);
+            });
 
             const escalationPolicyDropDownOptions = escalationPolicyList.map((policy) => {
+                let policyLabel = policy.name;
+                if(policy.account && policy.account !== 'default'){
+                    policyLabel = `(${policy.account}) ${policy.name}`;
+                }
+
                 return {
-                    label: policy.name,
+                    label: policyLabel,
                     value: policy.id,
                 };
             });
@@ -348,12 +375,13 @@ export async function createRouter(
         try {
             // Get the escalation policy ID from the request parameters with parameter name "escalation_policy_ids[]"
             const escalationPolicyId: string = request.query.escalation_policy_ids as string || '';
+            const account = request.query.account as string || '';
 
             if (escalationPolicyId === '') {
                 response.status(400).json("Bad Request: 'escalation_policy_ids[]' is required");
             }
 
-            const oncallUsers = await getOncallUsers(escalationPolicyId);
+            const oncallUsers = await getOncallUsers(escalationPolicyId, account);
             const onCallUsersResponse: PagerDutyOnCallUsersResponse = {
                 users: oncallUsers
             };
@@ -375,12 +403,13 @@ export async function createRouter(
         try {
             // Get the serviceId from the request parameters
             const serviceId: string = request.params.serviceId || '';
+            const account = request.query.account as string || '';
 
             if (serviceId === '') {
                 response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path or 'integration_key' as a query parameter");
             }
 
-            const service = await getServiceById(serviceId);
+            const service = await getServiceById(serviceId, account);
             const serviceResponse: PagerDutyServiceResponse = {
                 service: service
             }
@@ -402,9 +431,10 @@ export async function createRouter(
         try {
             // Get the serviceId from the request parameters
             const integrationKey: string = request.query.integration_key as string || '';
+            const account = request.query.account as string || '';
 
             if (integrationKey !== '') {
-                const service = await getServiceByIntegrationKey(integrationKey);
+                const service = await getServiceByIntegrationKey(integrationKey, account);
                 const serviceResponse: PagerDutyServiceResponse = {
                     service: service
                 }
@@ -434,8 +464,9 @@ export async function createRouter(
         try {
             // Get the serviceId from the request parameters
             const serviceId: string = request.params.serviceId || '';
+            const account = request.query.account as string || '';
 
-            const changeEvents = await getChangeEvents(serviceId);
+            const changeEvents = await getChangeEvents(serviceId, account);
             const changeEventsResponse: PagerDutyChangeEventsResponse = {
                 change_events: changeEvents
             }
@@ -457,8 +488,9 @@ export async function createRouter(
         try {
             // Get the serviceId from the request parameters
             const serviceId: string = request.params.serviceId || '';
+            const account = request.query.account as string || '';
 
-            const incidents = await getIncidents(serviceId);
+            const incidents = await getIncidents(serviceId, account);
             const incidentsResponse: PagerDutyIncidentsResponse = {
                 incidents
             }
@@ -481,8 +513,9 @@ export async function createRouter(
 
             // Get the serviceId from the request parameters
             const serviceId: string = request.params.serviceId || '';
+            const account = request.query.account as string || '';
 
-            const serviceStandards = await getServiceStandards(serviceId);
+            const serviceStandards = await getServiceStandards(serviceId, account);
             const serviceStandardsResponse: PagerDutyServiceStandardsResponse = {
                 standards: serviceStandards
             }
@@ -504,8 +537,9 @@ export async function createRouter(
         try {
             // Get the serviceId from the request parameters
             const serviceId: string = request.params.serviceId || '';
+            const account = request.query.account as string || '';
 
-            const metrics = await getServiceMetrics(serviceId);
+            const metrics = await getServiceMetrics(serviceId, account);
 
 
             const metricsResponse: PagerDutyServiceMetricsResponse = {
