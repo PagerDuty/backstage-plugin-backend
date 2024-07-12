@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-conditional-expect */
-import { HttpError, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
-import { getAllEscalationPolicies, getAllServices, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceMetrics, getServiceStandards } from "./pagerduty";
+import { HttpError, PagerDutyAccountConfig, PagerDutyChangeEvent, PagerDutyIncident, PagerDutyIncidentsResponse, PagerDutyService } from "@pagerduty/backstage-plugin-common";
+import { getAllEscalationPolicies, getAllServices, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceMetrics, getServiceStandards, insertEndpointConfig, setFallbackEndpointConfig } from "./pagerduty";
 
 import { mocked } from "jest-mock";
 import fetch, { Response } from "node-fetch";
@@ -25,6 +25,18 @@ function mockedResponse(status: number, body: any): Promise<Response> {
 }
 
 describe("PagerDuty API", () => {    
+    beforeAll(() => {
+
+        const mockAccount: PagerDutyAccountConfig = {
+            id: "testaccount",
+            apiBaseUrl: "https://mock.api.pagerduty.com",
+            eventsBaseUrl: "https://mock.events.pagerduty.com",
+        };
+
+        insertEndpointConfig(mockAccount);
+        setFallbackEndpointConfig(mockAccount);
+    });
+    
     afterEach(() => {
         jest.clearAllMocks();
     });
@@ -33,11 +45,13 @@ describe("PagerDuty API", () => {
         it.each(testInputs)("should return ok", async () => {
             const expectedId = "P0L1CY1D";
             const expectedName = "Test Escalation Policy";
+            const expectedAccount = "testaccount";
 
             const expectedResponse = [
                 {
                     id: expectedId,
-                    name: expectedName
+                    name: expectedName,
+                    account: expectedAccount
                 }
             ];
 
@@ -120,47 +134,58 @@ describe("PagerDuty API", () => {
         it.each(testInputs)("should work with pagination", async () => {
             const expectedId = ["P0L1CY1D1", "P0L1CY1D2", "P0L1CY1D3", "P0L1CY1D4", "P0L1CY1D5", "P0L1CY1D6", "P0L1CY1D7", "P0L1CY1D8", "P0L1CY1D9", "P0L1CY1D10"];
             const expectedName = ["Test Escalation Policy 1", "Test Escalation Policy 2", "Test Escalation Policy 3", "Test Escalation Policy 4", "Test Escalation Policy 5", "Test Escalation Policy 6", "Test Escalation Policy 7", "Test Escalation Policy 8", "Test Escalation Policy 9", "Test Escalation Policy 10"];
+            const expectedAccount = "testaccount";
 
             const expectedResponse = [
                 {
                     id: expectedId[0],
-                    name: expectedName[0]
+                    name: expectedName[0],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[1],
-                    name: expectedName[1]
+                    name: expectedName[1],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[2],
-                    name: expectedName[2]
+                    name: expectedName[2],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[3],
-                    name: expectedName[3]
+                    name: expectedName[3],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[4],
-                    name: expectedName[4]
+                    name: expectedName[4],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[5],
-                    name: expectedName[5]
+                    name: expectedName[5],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[6],
-                    name: expectedName[6]
+                    name: expectedName[6],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[7],
-                    name: expectedName[7]
+                    name: expectedName[7],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[8],
-                    name: expectedName[8]
+                    name: expectedName[8],
+                    account: expectedAccount
                 },
                 {
                     id: expectedId[9],
-                    name: expectedName[9]
+                    name: expectedName[9],
+                    account: expectedAccount
                 }
             ];
 
@@ -694,6 +719,7 @@ describe("PagerDuty API", () => {
                     id: "S3RV1CE1D",
                     name: "Test Service",
                     description: "Test Service Description",
+                    account: "testaccount",
                     html_url: "https://testaccount.pagerduty.com/services/S3RV1CE1D",
                     escalation_policy: {
                         id: "P0L1CY1D",
@@ -707,6 +733,7 @@ describe("PagerDuty API", () => {
                     id: "S3RV1CE2D",
                     name: "Test Service",
                     description: "Test Service Description",
+                    account: "testaccount",
                     html_url: "https://testaccount.pagerduty.com/services/S3RV1CE2D",
                     escalation_policy: {
                         id: "P0L1CY1D",
