@@ -17,6 +17,7 @@ export interface PagerDutyBackendStore {
     insertEntityMapping(entity: PagerDutyEntityMapping): Promise <string> 
     getAllEntityMappings(): Promise<RawDbEntityResultRow[]>
     findEntityMappingByEntityRef(entityRef: string): Promise<RawDbEntityResultRow | undefined>
+    findEntityMappingByServiceId(serviceId: string): Promise<RawDbEntityResultRow | undefined>
 }
 
 type Options = {
@@ -52,7 +53,7 @@ export class PagerDutyBackendDatabase implements PagerDutyBackendStore {
                 processedDate: new Date(),
             })
             .onConflict(['serviceId'])
-            .merge(['entityRef', 'integrationKey', 'account', 'processedDate'])
+            .merge(['entityRef', 'integrationKey', 'account', 'processedDate'])        
             .returning('id');
 
         return result.id;
@@ -71,6 +72,14 @@ export class PagerDutyBackendDatabase implements PagerDutyBackendStore {
     async findEntityMappingByEntityRef(entityRef: string): Promise<RawDbEntityResultRow | undefined> {
         const rawEntity = await this.db<RawDbEntityResultRow>('pagerduty_entity_mapping')
             .where('entityRef', entityRef)
+            .first();
+
+        return rawEntity;
+    }
+
+    async findEntityMappingByServiceId(serviceId: string): Promise<RawDbEntityResultRow | undefined> {
+        const rawEntity = await this.db<RawDbEntityResultRow>('pagerduty_entity_mapping')
+            .where('serviceId', serviceId)
             .first();
 
         return rawEntity;
