@@ -20,6 +20,8 @@ import {
     PagerDutyServiceMetrics,
     HttpError,
     PagerDutyServicesAPIResponse,
+    PagerDutyAccountConfig,
+    PagerDutyIntegrationResponse,
     PagerDutyAccountConfig
 } from '@pagerduty/backstage-plugin-common';
 
@@ -653,4 +655,70 @@ export async function getServiceMetrics(serviceId: string, account?: string): Pr
         throw new HttpError(`Failed to parse service metrics information: ${error}`, 500);
     }
 }
+
+export type CreateServiceIntegrationProps = {
+    serviceId: string;
+    vendorId: string;
+    account?: string;
+}
+
+export async function createServiceIntegration({ serviceId, vendorId, account }: CreateServiceIntegrationProps): Promise<string> {
+    let response: Response;
+
+    const apiBaseUrl = getApiBaseUrl(account);
+    const baseUrl = `${apiBaseUrl}/services`;
+    const token = await getAuthToken(account);
+
+    const options: RequestInit = {
+        method: 'POST',
+        body: JSON.stringify({
+            integration: {
+                name: 'Backstage',
+                service: {
+                    id: serviceId,
+                    type: 'service_reference',
+                },
+                vendor: {
+                    id: vendorId,
+                    type: 'vendor_reference',
+                }
+            }
+        }),
+        headers: {
+            Authorization: token,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+
+    try {
+        response = await fetch(`${baseUrl}/${serviceId}/integrations`, options);
+    } catch (error) {
+        throw new Error(`Failed to create service integration: ${error}`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new Error(`Failed to create service integration. Caller provided invalid arguments.`);
+        case 401:
+            throw new Error(`Failed to create service integration. Caller did not supply credentials or did not provide the correct credentials.`);
+        case 403:
+            throw new Error(`Failed to create service integration. Caller is not authorized to view the requested resource.`);
+        case 429:
+            throw new Error(`Failed to create service integration. Rate limit exceeded.`);
+        default: // 201
+            break;
+    }
+
+    let result: PagerDutyIntegrationResponse;
+    try {
+        result = await response.json() as PagerDutyIntegrationResponse;
+
+        return result.integration.integration_key ?? '';
+
+    } catch (error) {
+        throw new Error(`Failed to parse service information: ${error}`);
+    }
+}
+
 
