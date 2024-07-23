@@ -1,8 +1,8 @@
 {
   "name": "@pagerduty/backstage-plugin-backend",
   "version": "NPM_PACKAGE_VERSION",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.cjs.js",
+  "types": "dist/index.d.ts",
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
@@ -10,6 +10,8 @@
     "types": "dist/index.d.ts"
   },
   "backstage": {
+    "pluginPackages": "pagerduty",
+    "pluginId": "backend",
     "role": "backend-plugin"
   },
   "repository": {
@@ -27,17 +29,17 @@
     "postpack": "backstage-cli package postpack"
   },
   "dependencies": {
-    "@backstage/backend-common": "^0.22.0",
-    "@backstage/backend-defaults": "^0.2.18",
-    "@backstage/backend-plugin-api": "^0.6.18",
-    "@backstage/backend-tasks": "^0.5.25",
+    "@backstage/backend-common": "^0.23.3",
+    "@backstage/backend-defaults": "^0.4.1",
+    "@backstage/backend-plugin-api": "^0.7.0",
+    "@backstage/backend-tasks": "^0.5.27",
     "@backstage/catalog-client": "^1.6.5",
     "@backstage/catalog-model": "^1.5.0",
     "@backstage/config": "^1.2.0",
-    "@backstage/core-plugin-api": "^1.9.2",
-    "@backstage/plugin-catalog-common": "^1.0.24",
-    "@backstage/plugin-catalog-node": "^1.12.0",
-    "@backstage/plugin-scaffolder-node": "^0.4.4",
+    "@backstage/core-plugin-api": "^1.9.3",
+    "@backstage/plugin-catalog-common": "^1.0.25",
+    "@backstage/plugin-catalog-node": "^1.12.4",
+    "@backstage/plugin-scaffolder-node": "^0.4.8",
     "@material-ui/core": "^4.12.4",
     "@pagerduty/backstage-plugin-common": "0.2.0",
     "@rjsf/core": "^5.14.3",
@@ -52,8 +54,8 @@
     "yn": "^4.0.0"
   },
   "devDependencies": {
-    "@backstage/backend-test-utils": "^0.4.3",
-    "@backstage/cli": "^0.26.6",
+    "@backstage/backend-test-utils": "^0.4.4",
+    "@backstage/cli": "^0.26.11",
     "@types/node": "^20.9.2",
     "@types/node-fetch": "2.6.11",
     "@types/supertest": "^2.0.12",
