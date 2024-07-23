@@ -28,10 +28,9 @@ export async function createComponentEntitiesReferenceDict({ items: componentEnt
     const componentEntitiesDict: Record<string, { ref: string, name: string }> = {};
 
     await Promise.all(componentEntities.map(async (entity) => {
-        const annotations: Annotations = JSON.parse(JSON.stringify(entity.metadata.annotations));
-        const serviceId = annotations['pagerduty.com/service-id'];
-        const integrationKey = annotations['pagerduty.com/integration-key'];
-        const account = annotations['pagerduty.com/account'] ?? "";
+        const serviceId = entity.metadata.annotations?.['pagerduty.com/service-id'];
+        const integrationKey = entity.metadata.annotations?.['pagerduty.com/integration-key'];
+        const account = entity.metadata.annotations?.['pagerduty.com/account'];
 
         if (serviceId !== undefined && serviceId !== "") {
             componentEntitiesDict[serviceId] = {
