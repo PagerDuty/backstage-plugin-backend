@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 
 import { createRouter, createComponentEntitiesReferenceDict, buildEntityMappingsResponse } from './router';
-import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse, PagerDutyEntityMappingsResponse } from '@pagerduty/backstage-plugin-common';
+import { PagerDutyEscalationPolicy, PagerDutyService, PagerDutyServiceResponse, PagerDutyOnCallUsersResponse, PagerDutyChangeEventsResponse, PagerDutyChangeEvent, PagerDutyIncidentsResponse, PagerDutyIncident, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse, PagerDutyEntityMappingsResponse, PagerDutyServiceDependencyResponse } from '@pagerduty/backstage-plugin-common';
 
 import { mocked } from "jest-mock";
 import fetch, { Response } from "node-fetch";
@@ -82,6 +82,92 @@ describe('createRouter', () => {
 
       expect(response.status).toEqual(200);
       expect(response.body).toEqual({ status: 'ok' });
+    });
+  });
+
+  describe('DELETE /dependencies/service/:serviceId', () => {
+    it.each(testInputs)('returns 400 if dependencies are not provided', async () => {
+      const response = await request(app).delete('/dependencies/service/12345');
+
+      expect(response.status).toEqual(400);
+      expect(response.body).toEqual("Bad Request: 'dependencies' must be provided as part of the request body");
+    });
+
+    it.each(testInputs)('returns 200 if service relations are removed successfully', async () => {
+      mocked(fetch).mockReturnValue(mockedResponse(200, {}));
+
+      const response = await request(app)
+        .delete('/dependencies/service/12345')
+        .send(['dependency1', 'dependency2']);
+
+      expect(response.status).toEqual(200);
+    });
+  });
+
+  describe('POST /dependencies/service/:serviceId', () => {
+    it.each(testInputs)('returns 400 if dependencies are not provided', async () => {
+      const response = await request(app).post('/dependencies/service/12345');
+
+      expect(response.status).toEqual(400);
+      expect(response.body).toEqual("Bad Request: 'dependencies' must be provided as part of the request body");
+    });
+
+    it.each(testInputs)('returns 200 if service relations are added successfully', async () => {
+      mocked(fetch).mockReturnValue(mockedResponse(200, {}));
+
+      const response = await request(app)
+        .post('/dependencies/service/12345')
+        .send(['dependency1', 'dependency2']);
+
+      expect(response.status).toEqual(200);
+    });
+  });
+
+  describe('GET /dependencies/service/:serviceId', () => {
+    it.each(testInputs)('returns 200 with service relationships if serviceId is valid', async () => {
+      const mockedResult : PagerDutyServiceDependencyResponse = {
+        relationships: [
+          {
+            id: "12345",
+            type: "service_dependency",
+            dependent_service: {
+              id: "54321",
+              type: "technical_service_reference"
+            },
+            supporting_service: {
+              id: "12345",
+              type: "technical_service_reference"
+            }
+          },
+          {
+            id: "871278",
+            type: "service_dependency",
+            dependent_service: {
+              id: "91292",
+              type: "technical_service_reference"
+            },
+            supporting_service: {
+              id: "12345",
+              type: "technical_service_reference"
+            }
+          }
+        ]
+      }
+
+      mocked(fetch).mockReturnValue(mockedResponse(200, mockedResult));
+
+      const response = await request(app).get('/dependencies/service/12345');
+
+      expect(response.status).toEqual(200);
+      expect(response.body).toHaveProperty('relationships');
+    });
+
+    it.each(testInputs)('returns 404 if serviceId is not found', async () => {
+      mocked(fetch).mockReturnValue(mockedResponse(404, {}));
+
+      const response = await request(app).get('/dependencies/service/S3RVICE1D');
+
+      expect(response.status).toEqual(404);
     });
   });
 

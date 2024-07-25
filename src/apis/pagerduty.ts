@@ -20,7 +20,10 @@ import {
     PagerDutyServiceMetrics,
     HttpError,
     PagerDutyServicesAPIResponse,
-    PagerDutyAccountConfig
+    PagerDutyAccountConfig,
+    PagerDutyIntegrationResponse,
+    PagerDutyServiceDependency,
+    PagerDutyServiceDependencyResponse,
 } from '@pagerduty/backstage-plugin-common';
 
 import { DateTime } from 'luxon';
@@ -100,6 +103,155 @@ function getApiBaseUrl(account?: string): string {
 }
 
 // Supporting router
+export async function addServiceRelationsToService(serviceRelations: PagerDutyServiceDependency[], account?: string): Promise<PagerDutyServiceDependency[]> {
+    let response: Response;
+    const options: RequestInit = {
+        method: 'POST',
+        headers: {
+            Authorization: await getAuthToken(account),
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            relationships: serviceRelations
+        })
+    };
+
+    const apiBaseUrl = getApiBaseUrl(account);
+    const baseUrl = `${apiBaseUrl}/service_dependencies/associate`;
+
+    try {
+        response = await fetchWithRetries(baseUrl, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service dependencies: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to add service dependencies. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to add service dependencies. Caller provided invalid arguments. Please review the response for error details. Retrying with the same arguments will not work.", 400);
+        case 401:
+            throw new HttpError("Failed to add service dependencies. Caller did not supply credentials or did not provide the correct credentials. If you are using an API key, it may be invalid or your Authorization header may be malformed.", 401);
+        case 403:
+            throw new HttpError("Failed to add service dependencies. Caller is not authorized to view the requested resource. While your authentication is valid, the authenticated user or token does not have permission to perform this action.", 403);
+        case 404:
+            throw new HttpError("Failed to add service dependencies. The requested resource was not found.", 404);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyServiceDependencyResponse;
+    try {
+        result = await response.json();
+
+        return result.relationships;
+
+    } catch (error) {
+        throw new HttpError(`Failed to parse service dependency information: ${error}`, 500);
+    }
+}
+
+export async function removeServiceRelationsFromService(serviceRelations: PagerDutyServiceDependency[], account?: string): Promise<PagerDutyServiceDependency[]> {
+    let response: Response;
+    const options: RequestInit = {
+        method: 'POST',
+        headers: {
+            Authorization: await getAuthToken(account),
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            relationships: serviceRelations
+        })
+    };
+
+    const apiBaseUrl = getApiBaseUrl(account);
+    const baseUrl = `${apiBaseUrl}/service_dependencies/disassociate`;
+
+    try {
+        response = await fetchWithRetries(`${baseUrl}`, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service dependencies: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to remove service dependencies. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to remove service dependencies. Caller provided invalid arguments. Please review the response for error details. Retrying with the same arguments will not work.", 400);
+        case 401:
+            throw new HttpError("Failed to remove service dependencies. Caller did not supply credentials or did not provide the correct credentials. If you are using an API key, it may be invalid or your Authorization header may be malformed.", 401);
+        case 403:
+            throw new HttpError("Failed to remove service dependencies. Caller is not authorized to view the requested resource. While your authentication is valid, the authenticated user or token does not have permission to perform this action.", 403);
+        case 404:
+            throw new HttpError("Failed to remove service dependencies. The requested resource was not found.", 404);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyServiceDependencyResponse;
+    try {
+        result = await response.json();
+
+        return result.relationships;
+
+    } catch (error) {
+        throw new HttpError(`Failed to parse service dependency information: ${error}`, 500);
+    }
+}
+
+export async function getServiceRelationshipsById(serviceId: string, account?: string): Promise<PagerDutyServiceDependency[]> {
+    let response: Response;
+    const options: RequestInit = {
+        method: 'GET',
+        headers: {
+            Authorization: await getAuthToken(account),
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+
+    const apiBaseUrl = getApiBaseUrl(account);
+    const baseUrl = `${apiBaseUrl}/service_dependencies/technical_services/${serviceId}`;
+
+    try {
+        response = await fetchWithRetries(baseUrl, options);
+    } catch (error) {
+        throw new Error(`Failed to retrieve service dependencies: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to list service dependencies. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new HttpError("Failed to list service dependencies. Caller provided invalid arguments. Please review the response for error details. Retrying with the same arguments will not work.", 400);
+        case 401:
+            throw new HttpError("Failed to list service dependencies. Caller did not supply credentials or did not provide the correct credentials. If you are using an API key, it may be invalid or your Authorization header may be malformed.", 401);
+        case 403:
+            throw new HttpError("Failed to list service dependencies. Caller is not authorized to view the requested resource. While your authentication is valid, the authenticated user or token does not have permission to perform this action.", 403);
+        case 404:
+            throw new HttpError("Failed to list service dependencies. The requested resource was not found.", 404);
+        default: // 200
+            break;
+    }
+
+    let result: PagerDutyServiceDependencyResponse;
+    try {
+        result = await response.json();
+
+        return result.relationships;
+    } catch (error) {
+        throw new HttpError(`Failed to parse service dependency information: ${error}`, 500);
+    }
+}
+
 
 async function getEscalationPolicies(offset: number, limit: number, account?: string): Promise<[Boolean, PagerDutyEscalationPolicy[]]> {
     let response: Response;
@@ -117,9 +269,13 @@ async function getEscalationPolicies(offset: number, limit: number, account?: st
     const baseUrl = `${apiBaseUrl}/escalation_policies`;
 
     try {
-        response = await fetch(`${baseUrl}?${params}`, options);
+        response = await fetchWithRetries(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve escalation policies: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to list escalation policies. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -206,9 +362,13 @@ export async function isEventNoiseReductionEnabled(account?: string): Promise<bo
     };
 
     try {
-        response = await fetch(`${baseUrl}/abilities`, options);
+        response = await fetchWithRetries(`${baseUrl}/abilities`, options);
     } catch (error) {
         throw new Error(`Failed to read abilities: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to read abilities. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -254,9 +414,13 @@ export async function getOncallUsers(escalationPolicy: string, account?: string)
     const baseUrl = `${apiBaseUrl}/oncalls`;
 
     try {
-        response = await fetch(`${baseUrl}?${params}`, options);
+        response = await fetchWithRetries(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve oncalls: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to list oncalls. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -330,9 +494,13 @@ export async function getServiceById(serviceId: string, account?: string): Promi
     const baseUrl = `${apiBaseUrl}/services`;
 
     try {
-        response = await fetch(`${baseUrl}/${serviceId}?${params}`, options);
+        response = await fetchWithRetries(`${baseUrl}/${serviceId}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve service: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to get service. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -376,9 +544,13 @@ export async function getServiceByIntegrationKey(integrationKey: string, account
     const baseUrl = `${apiBaseUrl}/services`;
 
     try {
-        response = await fetch(`${baseUrl}?${params}`, options);
+        response = await fetchWithRetries(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve service: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to get service. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -438,7 +610,11 @@ export async function getAllServices(): Promise<PagerDutyService[]> {
                 do {
                     const paginatedUrl = `${baseUrl}?${params}&offset=${offset}&limit=${limit}`;
 
-                    response = await fetch(paginatedUrl, options);
+                    response = await fetchWithRetries(paginatedUrl, options);
+
+                    if (response.status >= 500) {
+                        throw new HttpError(`Failed to get services. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
+                    }
 
                     switch (response.status) {
                         case 400:
@@ -487,9 +663,13 @@ export async function getChangeEvents(serviceId: string, account?: string): Prom
     const baseUrl = `${apiBaseUrl}/services`;
 
     try {
-        response = await fetch(`${baseUrl}/${serviceId}/change_events?${params}`, options);
+        response = await fetchWithRetries(`${baseUrl}/${serviceId}/change_events?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve change events for service: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to get change events for service. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -532,9 +712,13 @@ export async function getIncidents(serviceId: string, account?: string): Promise
     const baseUrl = `${apiBaseUrl}/incidents`;
 
     try {
-        response = await fetch(`${baseUrl}?${params}`, options);
+        response = await fetchWithRetries(`${baseUrl}?${params}`, options);
     } catch (error) {
         throw new Error(`Failed to retrieve incidents for service: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to get incidents for service. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -578,9 +762,13 @@ export async function getServiceStandards(serviceId: string, account?: string): 
     const baseUrl = `${apiBaseUrl}/standards/scores/technical_services/${serviceId}`;
 
     try {
-        response = await fetch(baseUrl, options);
+        response = await fetchWithRetries(baseUrl, options);
     } catch (error) {
         throw new Error(`Failed to retrieve service standards for service: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to get service standards for service. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -631,9 +819,13 @@ export async function getServiceMetrics(serviceId: string, account?: string): Pr
     const baseUrl = `${apiBaseUrl}/analytics/metrics/incidents/services`;
 
     try {
-        response = await fetch(baseUrl, options);
+        response = await fetchWithRetries(baseUrl, options);
     } catch (error) {
         throw new Error(`Failed to retrieve service metrics for service: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new HttpError(`Failed to get service metrics for service. PagerDuty API returned a server error. Retrying with the same arguments will not work.`, response.status);
     }
 
     switch (response.status) {
@@ -654,3 +846,96 @@ export async function getServiceMetrics(serviceId: string, account?: string): Pr
     }
 }
 
+export type CreateServiceIntegrationProps = {
+    serviceId: string;
+    vendorId: string;
+    account?: string;
+}
+
+export async function createServiceIntegration({ serviceId, vendorId, account }: CreateServiceIntegrationProps): Promise<string> {
+    let response: Response;
+
+    const apiBaseUrl = getApiBaseUrl(account);
+    const baseUrl = `${apiBaseUrl}/services`;
+    const token = await getAuthToken(account);
+
+    const options: RequestInit = {
+        method: 'POST',
+        body: JSON.stringify({
+            integration: {
+                name: 'Backstage',
+                service: {
+                    id: serviceId,
+                    type: 'service_reference',
+                },
+                vendor: {
+                    id: vendorId,
+                    type: 'vendor_reference',
+                }
+            }
+        }),
+        headers: {
+            Authorization: token,
+            'Accept': 'application/vnd.pagerduty+json;version=2',
+            'Content-Type': 'application/json',
+        },
+    };
+
+    try {
+        response = await fetchWithRetries(`${baseUrl}/${serviceId}/integrations`, options);
+    } catch (error) {
+        throw new Error(`Failed to create service integration: ${error}`);
+    }
+
+    if (response.status >= 500) {
+        throw new Error(`Failed to create service integration. PagerDuty API returned a server error. Retrying with the same arguments will not work.`);
+    }
+
+    switch (response.status) {
+        case 400:
+            throw new Error(`Failed to create service integration. Caller provided invalid arguments.`);
+        case 401:
+            throw new Error(`Failed to create service integration. Caller did not supply credentials or did not provide the correct credentials.`);
+        case 403:
+            throw new Error(`Failed to create service integration. Caller is not authorized to view the requested resource.`);
+        case 429:
+            throw new Error(`Failed to create service integration. Rate limit exceeded.`);
+        default: // 201
+            break;
+    }
+
+    let result: PagerDutyIntegrationResponse;
+    try {
+        result = await response.json() as PagerDutyIntegrationResponse;
+
+        return result.integration.integration_key ?? '';
+
+    } catch (error) {
+        throw new Error(`Failed to parse service information: ${error}`);
+    }
+}
+
+export async function fetchWithRetries(url: string, options: RequestInit): Promise<Response> {
+    let response: Response;
+    let error: Error = new Error();
+
+    // set retry parameters
+    const maxRetries = 5;
+    const delay = 1000;
+    let factor = 2;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            response = await fetch(url, options);
+            return response;
+        } catch (e) {
+            error = e;
+        }
+
+        const timeout = delay * factor;
+        await new Promise(resolve => setTimeout(resolve, timeout));
+        factor *= 2;
+    }
+
+    throw new Error(`Failed to fetch data after ${maxRetries} retries. Last error: ${error}`);
+}
