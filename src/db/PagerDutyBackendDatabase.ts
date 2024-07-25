@@ -1,4 +1,4 @@
-import { PagerDutyEntityMapping } from "@pagerduty/backstage-plugin-common";
+import { PagerDutyEntityMapping, PagerDutySetting } from "@pagerduty/backstage-plugin-common";
 import { resolvePackagePath } from "@backstage/backend-plugin-api";
 import { Knex } from 'knex';
 import { v4 as uuid } from 'uuid';
@@ -18,6 +18,9 @@ export interface PagerDutyBackendStore {
     getAllEntityMappings(): Promise<RawDbEntityResultRow[]>
     findEntityMappingByEntityRef(entityRef: string): Promise<RawDbEntityResultRow | undefined>
     findEntityMappingByServiceId(serviceId: string): Promise<RawDbEntityResultRow | undefined>
+    updateSetting(setting: PagerDutySetting): Promise<string>
+    findSetting(settingId: string): Promise<PagerDutySetting | undefined>
+    getAllSettings(): Promise<PagerDutySetting[]>
 }
 
 type Options = {
@@ -83,5 +86,36 @@ export class PagerDutyBackendDatabase implements PagerDutyBackendStore {
             .first();
 
         return rawEntity;
+    }
+
+    async updateSetting(setting: PagerDutySetting): Promise<string> {
+        const [result] = await this.db<PagerDutySetting>('pagerduty_settings')
+            .insert({
+                id: setting.id,
+                value: setting.value                
+            })
+            .onConflict(['id'])
+            .merge(['value'])
+            .returning('id');
+
+        return result.id;
+    }
+
+    async findSetting(settingId: string): Promise<PagerDutySetting | undefined> {
+        const rawEntity = await this.db<PagerDutySetting>('pagerduty_settings')
+            .where('id', settingId)
+            .first();
+
+        return rawEntity;
+    }
+
+    async getAllSettings(): Promise<PagerDutySetting[]> {
+        const rawEntities = await this.db<PagerDutySetting>('pagerduty_settings');
+
+        if (!rawEntities) {
+            return [];
+        }
+
+        return rawEntities;
     }
 }
