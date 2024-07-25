@@ -37,6 +37,7 @@ import {
     PagerDutyEntityMapping,
     PagerDutyEntityMappingsResponse,
     PagerDutyService,
+    PagerDutySetting
 } from '@pagerduty/backstage-plugin-common';
 import { loadAuthConfig } from '../auth/auth';
 import {
@@ -278,6 +279,73 @@ export async function createRouter(
             }
         }
     });
+
+    // POST /settings
+    router.post('/settings', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const settings : PagerDutySetting[] = request.body;
+
+            // For each setting, update or insert the value in the database
+            await Promise.all(settings.map(async (setting) => {
+                if(setting.id === undefined || setting.value === undefined) {
+                    response.status(400).json("Bad Request: 'id' and 'value' are required");
+                }
+
+                if(!isValidSetting(setting.value)) {
+                    response.status(400).json("Bad Request: 'value' is invalid. Valid options are 'backstage', 'pagerduty', 'both' or 'disabled'");
+                }
+
+                await store.updateSetting(setting);
+            }));
+
+            response.sendStatus(200);
+
+        } catch (error) {
+            if (error instanceof HttpError) {
+                logger.error(`Error occurred while processing request: ${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
+    // GET /settings/:settingId
+    router.get('/settings/:settingId', async (request, response) => {
+        try {
+            // Get param from the request
+            const settingId = request.params.settingId;
+        
+            // Find setting by id
+            const setting = await store.findSetting(settingId);
+
+            if (!setting) {
+                response.status(404).json({});
+                return;
+            }
+
+            response.json(setting);
+        } catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
+    function isValidSetting(value: string): boolean {
+        if(value === "backstage" || value === "pagerduty" || value === "both" || value === "disabled") {
+            return true;
+        }
+
+        return false;
+    }
 
     // POST /mapping/entity
     router.post('/mapping/entity', async (request, response) => {
