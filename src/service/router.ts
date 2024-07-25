@@ -20,10 +20,9 @@ import {
     getAllServices,
     loadPagerDutyEndpointsFromConfig,
     createServiceIntegration,
-import { AuthService, DiscoveryService, LoggerService, RootConfigService } from '@backstage/backend-plugin-api';
-import { createLegacyAuthAdapters, errorHandler } from '@backstage/backend-common';
-import { getAllEscalationPolicies, getChangeEvents, getIncidents, getOncallUsers, getServiceById, getServiceByIntegrationKey, getServiceStandards, getServiceMetrics, getAllServices, loadPagerDutyEndpointsFromConfig } from '../apis/pagerduty';
-import { HttpError, PagerDutyChangeEventsResponse, PagerDutyIncidentsResponse, PagerDutyOnCallUsersResponse, PagerDutyServiceResponse, PagerDutyServiceStandardsResponse, PagerDutyServiceMetricsResponse, PagerDutyServicesResponse, PagerDutyEntityMapping, PagerDutyEntityMappingsResponse, PagerDutyService } from '@pagerduty/backstage-plugin-common';
+    getServiceRelationshipsById,
+    addServiceRelationsToService,
+    removeServiceRelationsFromService
 } from '../apis/pagerduty';
 import {
     HttpError,
@@ -37,6 +36,7 @@ import {
     PagerDutyEntityMapping,
     PagerDutyEntityMappingsResponse,
     PagerDutyService,
+    PagerDutyServiceDependency,
     PagerDutySetting
 } from '@pagerduty/backstage-plugin-common';
 import { loadAuthConfig } from '../auth/auth';
@@ -246,6 +246,131 @@ export async function createRouter(
     // Create the router
     const router = Router();
     router.use(express.json());
+
+    // DELETE /dependencies/service/:serviceId
+    router.delete('/dependencies/service/:serviceId', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const serviceId = request.params.serviceId || '';
+            const account = request.query.account as string || '';
+
+            if(serviceId === '') {
+                response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path");
+            }
+
+            const dependencies: string[] = Object.keys(request.body).length === 0 ? [] : request.body;
+            if(!dependencies || dependencies.length === 0) {
+                response.status(400).json("Bad Request: 'dependencies' must be provided as part of the request body");
+            }
+
+            const serviceRelations : PagerDutyServiceDependency[] = [];
+
+            dependencies.forEach(async (dependency) => {
+                serviceRelations.push({
+                    supporting_service: {
+                        id: dependency,
+                        type: "service"
+                    },
+                    dependent_service: {
+                        id: serviceId,
+                        type: "service"
+                    }
+                });
+            });
+
+            await removeServiceRelationsFromService(serviceRelations, account);
+            
+            response.sendStatus(200);
+
+        } catch (error) {
+            if (error instanceof HttpError) {
+                logger.error(`Error occurred while processing request: ${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
+    // POST /dependencies/service/:serviceId
+    router.post('/dependencies/service/:serviceId', async (request, response) => {
+        try {
+            // Get the serviceId from the request parameters
+            const serviceId = request.params.serviceId || '';
+            const account = request.query.account as string || '';
+
+            if(serviceId === '') {
+                response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path");
+            }
+
+            const dependencies: string[] = Object.keys(request.body).length === 0 ? [] : request.body;
+            if(!dependencies || dependencies.length === 0) {
+                response.status(400).json("Bad Request: 'dependencies' must be provided as part of the request body");
+            }
+
+            const serviceRelations : PagerDutyServiceDependency[] = [];
+
+            dependencies.forEach(async (dependency) => {
+                serviceRelations.push({
+                    supporting_service: {
+                        id: dependency,
+                        type: "service"
+                    },
+                    dependent_service: {
+                        id: serviceId,
+                        type: "service"
+                    }
+                });
+            });
+
+            await addServiceRelationsToService(serviceRelations, account);
+            
+            response.sendStatus(200);
+
+        } catch (error) {
+            if (error instanceof HttpError) {
+                logger.error(`Error occurred while processing request: ${error.message}`);
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
+
+    router.get('/dependencies/service/:serviceId', async (request, response) => {
+        try {
+            const serviceId = request.params.serviceId;
+            const account = request.query.account as string || '';
+
+            if (serviceId) {
+                const serviceRelationships: PagerDutyServiceDependency[] = await getServiceRelationshipsById(serviceId, account);
+
+                if (serviceRelationships) {
+                    response.json({
+                        relationships: serviceRelationships
+                    });
+                }
+            }
+            else {
+                response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path");
+            }
+        }
+        catch (error) {
+            if (error instanceof HttpError) {
+                response.status(error.status).json({
+                    errors: [
+                        `${error.message}`
+                    ]
+                });
+            }
+        }
+    });
+
     // GET /catalog/entity/:entityRef
     router.get('/catalog/entity/:type/:namespace/:name', async (request, response) => {
         const type = request.params.type;
