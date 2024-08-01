@@ -913,6 +913,12 @@ describe('createRouter', () => {
     });
 
     describe('entity mappings', () => {
+      it("returns a 400 if no serviceId is provided", async () => {
+        const response = await request(app).post('/mapping/entity').send(JSON.stringify({}));
+        expect(response.status).toEqual(400);
+        expect(response.body).toEqual("Bad Request: 'serviceId' must be provided as part of the request body");
+      });
+
       it("creates mapping reference dictionary from service-ids", async () => {
         const mockEntitiesResponse = {
           "items":

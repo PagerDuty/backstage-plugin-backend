@@ -484,7 +484,7 @@ export async function createRouter(
             const entity: PagerDutyEntityMapping = request.body;
 
             if (!entity.serviceId) {
-                response.status(400).json("Bad Request: 'service_id' is required");
+                response.status(400).json("Bad Request: 'serviceId' must be provided as part of the request body");
                 return;
             }
 
