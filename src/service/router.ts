@@ -255,11 +255,13 @@ export async function createRouter(
 
             if(serviceId === '') {
                 response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path");
+                return;
             }
 
             const dependencies: string[] = Object.keys(request.body).length === 0 ? [] : request.body;
             if(!dependencies || dependencies.length === 0) {
                 response.status(400).json("Bad Request: 'dependencies' must be provided as part of the request body");
+                return;
             }
 
             const serviceRelations : PagerDutyServiceDependency[] = [];
@@ -302,11 +304,13 @@ export async function createRouter(
 
             if(serviceId === '') {
                 response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path");
+                return;
             }
 
             const dependencies: string[] = Object.keys(request.body).length === 0 ? [] : request.body;
             if(!dependencies || dependencies.length === 0) {
                 response.status(400).json("Bad Request: 'dependencies' must be provided as part of the request body");
+                return;
             }
 
             const serviceRelations : PagerDutyServiceDependency[] = [];
@@ -414,10 +418,12 @@ export async function createRouter(
             await Promise.all(settings.map(async (setting) => {
                 if(setting.id === undefined || setting.value === undefined) {
                     response.status(400).json("Bad Request: 'id' and 'value' are required");
+                    return;
                 }
 
                 if(!isValidSetting(setting.value)) {
                     response.status(400).json("Bad Request: 'value' is invalid. Valid options are 'backstage', 'pagerduty', 'both' or 'disabled'");
+                    return;
                 }
 
                 await store.updateSetting(setting);
@@ -478,7 +484,8 @@ export async function createRouter(
             const entity: PagerDutyEntityMapping = request.body;
 
             if (!entity.serviceId) {
-                response.status(400).json("Bad Request: 'service_id' is required");
+                response.status(400).json("Bad Request: 'serviceId' must be provided as part of the request body");
+                return;
             }
 
             // Get all the entity mappings from the database
@@ -698,6 +705,7 @@ export async function createRouter(
 
             if (escalationPolicyId === '') {
                 response.status(400).json("Bad Request: 'escalation_policy_ids[]' is required");
+                return;
             }
 
             const oncallUsers = await getOncallUsers(escalationPolicyId, account);
@@ -726,6 +734,7 @@ export async function createRouter(
 
             if (serviceId === '') {
                 response.status(400).json("Bad Request: ':serviceId' must be provided as part of the path or 'integration_key' as a query parameter");
+                return;
             }
 
             const service = await getServiceById(serviceId, account);
@@ -787,6 +796,7 @@ export async function createRouter(
 
             if (serviceId === '' || vendorId === '') {
                 response.status(400).json("Bad Request: ':serviceId' and ':vendorId' must be provided as part of the path");
+                return;
             }
 
             const integrationKey = await createServiceIntegration({
