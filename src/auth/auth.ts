@@ -16,54 +16,34 @@ type Auth = {
 let authPersistence: Auth;
 let isLegacyConfig = false;
 
-export async function getAuthToken(accountId? : string): Promise<string> {
+async function checkForOAuthToken(tokenId: string): Promise<boolean> {
+    if (authPersistence.accountTokens[tokenId]?.authToken !== '' &&
+        authPersistence.accountTokens[tokenId]?.authToken.includes('Bearer')) {
+            if (authPersistence.accountTokens[tokenId].authTokenExpiryDate > Date.now()) {
+                return true
+            }
+            authPersistence.logger.info('OAuth token expired, renewing');
+            await loadAuthConfig(authPersistence.config, authPersistence.logger);
+            return authPersistence.accountTokens[tokenId].authTokenExpiryDate > Date.now()
+        }
+    return false
+}
 
+export async function getAuthToken(accountId? : string): Promise<string> {
     // if authPersistence is not initialized, load the auth config
     if (!authPersistence?.accountTokens) {
         await loadAuthConfig(authPersistence.config, authPersistence.logger);
     }
 
-    if(isLegacyConfig){
-        if (
-            (authPersistence.accountTokens.default.authToken !== '' &&
-                authPersistence.accountTokens.default.authToken.includes('Bearer') &&
-                authPersistence.accountTokens.default.authTokenExpiryDate > Date.now())  // case where OAuth token is still valid
-            ||
-            (authPersistence.accountTokens.default.authToken !== '' &&
-                authPersistence.accountTokens.default.authToken.includes('Token'))) { // case where API token is used
-            
+    if (isLegacyConfig && authPersistence.accountTokens.default.authToken !== '' 
+        && (await checkForOAuthToken('default') || authPersistence.accountTokens.default.authToken.includes('Token'))) {
             return authPersistence.accountTokens.default.authToken;
-        }
     }
-    else {
-        // check if accountId is provided
-        if (accountId && accountId !== '') {
-            if (
-                (authPersistence.accountTokens[accountId].authToken !== '' &&
-                    authPersistence.accountTokens[accountId].authToken.includes('Bearer') &&
-                    authPersistence.accountTokens[accountId].authTokenExpiryDate > Date.now())  // case where OAuth token is still valid
-                ||
-                (authPersistence.accountTokens[accountId].authToken !== '' &&
-                    authPersistence.accountTokens[accountId].authToken.includes('Token'))) { // case where API token is used
+    const key = accountId && accountId !== '' ? accountId : authPersistence.defaultAccount ?? '';
 
-                return authPersistence.accountTokens[accountId].authToken;
-            }
-        }
-
-        else { // return default account token if accountId is not provided
-            const defaultFallback = authPersistence.defaultAccount ?? "";
-
-            if (
-                (authPersistence.accountTokens[defaultFallback].authToken !== '' &&
-                    authPersistence.accountTokens[defaultFallback].authToken.includes('Bearer') &&
-                    authPersistence.accountTokens[defaultFallback].authTokenExpiryDate > Date.now())  // case where OAuth token is still valid
-                ||
-                (authPersistence.accountTokens[defaultFallback].authToken !== '' &&
-                    authPersistence.accountTokens[defaultFallback].authToken.includes('Token'))) { // case where API token is used
-
-                return authPersistence.accountTokens[defaultFallback].authToken;
-            }
-        }
+    if (authPersistence.accountTokens[key]?.authToken !== ''
+        && (await checkForOAuthToken(key) || authPersistence.accountTokens[key]?.authToken.includes('Token'))) {
+            return authPersistence.accountTokens[key].authToken;
     }
 
     return '';
@@ -119,7 +99,7 @@ export async function loadAuthConfig(config : RootConfigService, logger: LoggerS
         else { // new accounts config is present
             logger.info('New PagerDuty accounts configuration found in config file.');
             isLegacyConfig = false;
-            const accounts = config.getOptional<PagerDutyAccountConfig[]>('pagerDuty.accounts');
+            const accounts = config.getOptional<PagerDutyAccountConfig[]>('pagerDuty.accounts') || [];
 
 
             if(accounts && accounts?.length === 1){
@@ -127,7 +107,7 @@ export async function loadAuthConfig(config : RootConfigService, logger: LoggerS
                 authPersistence.defaultAccount = accounts[0].id;
             }
 
-            accounts?.forEach(async account => {
+            await Promise.all(accounts.map(async account => {
                 const maskedAccountId = maskString(account.id);
 
                 if(account.isDefault && !authPersistence.defaultAccount){
@@ -161,7 +141,7 @@ export async function loadAuthConfig(config : RootConfigService, logger: LoggerS
 
                     logger.info(`PagerDuty API token loaded successfully for account ${maskedAccountId}.`);
                 }
-            });
+            }));
 
             if(!authPersistence.defaultAccount){
                 logger.error('No default account found in config file. One account must be marked as default.');
