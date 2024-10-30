@@ -10,13 +10,18 @@
     "types": "dist/index.d.ts"
   },
   "backstage": {
-    "pluginPackages": "pagerduty",
-    "pluginId": "backend",
-    "role": "backend-plugin"
+    "pluginId": "pagerduty",
+    "role": "backend-plugin",
+    "pluginPackages": [
+      "@pagerduty/backstage-plugin",
+      "@pagerduty/backstage-plugin-common",
+      "@pagerduty/backstage-plugin-backend"
+    ]
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pagerduty/backstage-plugin-backend"
+    "url": "https://github.com/pagerduty/backstage-plugin-backend",
+    "directory": "."
   },
   "homepage": "https://pagerduty.github.io/backstage-plugin-docs/index.html",
   "scripts": {
