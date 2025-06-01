@@ -59,7 +59,7 @@
     "yn": "^4.0.0"
   },
   "devDependencies": {
-    "@backstage/backend-test-utils": "^0.4.4",
+    "@backstage/backend-test-utils": "^0.5.1",
     "@backstage/cli": "^0.26.11",
     "@types/node": "^20.9.2",
     "@types/node-fetch": "2.6.11",
