@@ -1,3 +1,14 @@
+<h1 style="text-align: center; color: darkred">Deprecation notice</h1>
+
+<p style="text-align: center">
+<b>Notice</b>: this repository is soon going to be archived. Going forward all Backstage Plugins for PagerDuty will be 
+developed and maintained in a monorepo. You can find the mentioned monorepo 
+<a href="https://github.com/PagerDuty/backstage-plugin-monorepo">here</a>. All the issues opened by the community will 
+be moved and addressed in the new Github repository.
+</p>
+
+<br>
+
 # PagerDuty plugin for Backstage - Backend
 
 [![Release](https://github.com/PagerDuty/backstage-plugin-backend/actions/workflows/on_release_created.yml/badge.svg)](https://github.com/PagerDuty/backstage-plugin-backend/actions/workflows/on_release_created.yml)
